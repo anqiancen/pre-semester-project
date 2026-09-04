@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>地图 1</title></head>
+<body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh">
+<canvas id="g" width="640" height="384"></canvas>
+<script>
+// ==================== 1. 常量 ====================
+const T = 32;             // 游戏里每个格子 32 像素（画布上的大小，即"目标尺寸"）
+const TILE = 16;          // 贴图集里每块贴图 16 像素（原图里的大小，即"源尺寸"）
+const S = 24;             // 玩家方块边长（比格子略小，视觉上更舒服）
+const SPEED = 150;        // 移动速度：每秒走多少像素
+const ANIM = 0.15;        // 走路动画：每帧停留多少秒（越小，迈步越急促）
+
+// ==================== 2. 地图数据 ====================
+// '#' = 墙   '.' = 空地(草地)   'D' = 门
+// 每个字符串是一行，字符串里每个字符是一个格子
+const MAP = [
+  "####################",
+  "#..................#",
+  "#..................#",
+  "#..................#",
+  "#..................#",
+  "#..................D",
+  "#..................#",
+  "#..................#",
+  "#..................#",
+  "#..................#",
+  "#..................#",
+  "####################",
+];
+
+const c = document.getElementById("g").getContext("2d"); // 拿到"画笔"
+c.imageSmoothingEnabled = false;   // 关闭平滑：放大像素画时保持清晰，不模糊
+
+// 颜色表：给"还没有贴图"的格子兜底用（墙、门暂时还是纯色）暂时不需要了
+//const COLOR = { '#': '#666', '.': '#2a2', 'D': '#48f' };
+
+// ==================== 3. 加载贴图（多图计数器模式） ====================
+// 列出所有要用的贴图集：名字 → 文件名
+const SHEETS = {
+  outdoors: "winter_outdoorsTileSheet.png",
+  alex:     "Alex.png",                     // 人物（玩家）贴图
+  // town:  "winter_town.png",               // 以后要用别的图，取消注释即可
+  // beach: "winter_beach.png",
+};
+
+const img = {};                    // 存放加载好的图片对象，如 img.outdoors
+const names = Object.keys(SHEETS); // 取出所有名字 → ["outdoors"]
+const total = names.length;        // 一共有几张图
+let loaded = 0;                    // 已经加载好几张（计数器）
+
+// 贴图表：地图字符 → { 在哪张图, 第几列, 第几行 }
+// 列/行 用 tiles_viewer.html 悬停查看确认；这里的草地待你确认
+const TILES = {
+  '.': { sheet: "outdoors", col: 6, row: 19 },  // 雪地：源像素(96,304) = 第6列第19行
+  '#': { sheet: "outdoors", col: 22, row: 44 }, //边界
+  'D': { sheet: "outdoors", col: 11, row: 18 },
+};
+
+// 物体层：放在地面之上的东西（树、房子、石头…），单独渲染、单独记是否挡路
+// 每项记录：{ 用哪张图, 源位置, 源大小, 放哪(列/行), 是否实心 }
+const OBJECTS = [
+  {
+    sheet: "outdoors",          // 用哪张贴图集
+    sx: 160, sy: 256,           // 源：从贴图集的 (160,256) 开始抠
+    sw: TILE, sh: TILE * 2,     // 源大小：1 格宽、2 格高（一棵树）
+    col: 5, row: 4,             // 左上角锚点：树冠那格（第 5 列第 4 行）
+    mask: [".", "#"],           // 碰撞足迹：上一格(树冠)能走，下一格(树根)挡路
+  }
+];
+
+// ==================== 4. 玩家状态 ====================
+let px = 1 * T + 4, py = 1 * T + 4;   // 玩家碰撞盒左上角像素坐标（浮点数，可平滑移动）
+let dir = 0;                          // 朝向：0=下 1=右 2=上 3=左（对应 Alex.png 第几行）
+let frame = 0;                        // 动画帧：0~3（对应 Alex.png 第几列）
+let animTime = 0;                     // 动画计时器：累计秒数，用来换帧
+
+// ==================== 5. 画图 ====================
+function draw() {
+  // 5.1 先画整个地图
+  for (let y = 0; y < MAP.length; y++)          // y = 第几行
+    for (let x = 0; x < MAP[y].length; x++) {   // x = 第几列
+      const ch = MAP[y][x];                     // 当前格子的字符
+      const t = TILES[ch];                      // 查贴图表：这个字符有贴图吗？
+
+      if (t) {
+        // 有贴图：从原图抠 16×16，放大到画布 32×32
+        // drawImage(图, 源x,源y,源宽,源高,  目标x,目标y,目标宽,目标高)
+        c.drawImage(img[t.sheet],
+                    t.col * TILE, t.row * TILE, TILE, TILE,   // 源：从贴图集哪里抠
+                    x * T, y * T, T, T);                       // 目标：画到画布哪里
+      }
+      // else {
+      //   // 还没找到贴图（墙、门）：先用纯色填充，保证能看见
+      //   c.fillStyle = COLOR[ch];
+      //   c.fillRect(x * T, y * T, T, T);
+      // }
+    }
+  drawActors();                               // 5.2 画物体+玩家：按脚底 y 排序，解决前后遮挡
+}
+
+function drawPlayer() {                       // 画玩家：用 Alex.png 的行走贴图
+  const SCALE = T / TILE;                     // 放大倍数 (32/16 = 2)
+  const pw = TILE * SCALE;                    // 玩家图宽：16 源 → 32 游戏
+  const ph = TILE * 2 * SCALE;                // 玩家图高：32 源 → 64 游戏
+  const sx = frame * TILE;                    // 源 x：第 frame 列
+  const sy = dir * TILE * 2;                  // 源 y：第 dir 行（每行 32px 高）
+  const dx = px + S / 2 - pw / 2;             // 目标 x：水平居中于碰撞盒
+  const dy = py + S - ph;                     // 目标 y：脚底对齐碰撞盒底部，身体向上延伸
+  c.drawImage(img.alex, sx, sy, TILE, TILE * 2, dx, dy, pw, ph);
+}
+
+function drawObject(o) {                      // 画一个物体（树、房子…）
+  const SCALE = T / TILE;                     // 放大倍数
+  const dw = o.sw * SCALE;                    // 目标宽（16px 源 → 32px 游戏）
+  const dh = o.sh * SCALE;                    // 目标高（32px 源 → 64px 游戏）
+  const dx = o.col * T;                       // 目标 x：水平对齐锚点格
+  const dy = o.row * T;                       // 目标 y：左上角对齐（mask 从上往下铺）
+  c.drawImage(img[o.sheet], o.sx, o.sy, o.sw, o.sh, dx, dy, dw, dh);
+}
+
+function drawActors() {                       // 画所有会互相遮挡的东西（物体 + 玩家）
+  const actors = [];                          // 先收集，再排序，最后画
+
+  // ① 收集：物体和玩家放进同一个列表，各记下"脚底 y"
+  for (const o of OBJECTS)
+    actors.push({ footY: o.row * T + o.sh * (T / TILE), kind: "obj", obj: o });  // 脚底 = 左上角 + 图高
+  actors.push({ footY: py + S, kind: "player" });                  // 玩家脚底 = 碰撞盒底部
+
+  // ② 排序：脚底 y 越小 = 越靠上 = 离镜头越远 = 先画（被后面画的盖住）
+  actors.sort((a, b) => a.footY - b.footY);
+
+  // ③ 依次画
+  for (const a of actors) {
+    if (a.kind === "player") drawPlayer();    // 玩家
+    else drawObject(a.obj);                   // 物体
+  }
+}
+
+// ==================== 6. 碰撞检测 ====================
+function solidInObject(gx, gy) {                // 这格是否被某个物体的实心区挡路
+  for (const o of OBJECTS) {
+    const dx = gx - o.col;                      // 相对物体左上角的列偏移
+    const dy = gy - o.row;                      // 相对物体左上角的行偏移
+    if (o.mask[dy] && o.mask[dy][dx] === '#') return true;  // 落在实心区
+  }
+  return false;
+}
+
+function solidAt(x, y) {                        // 像素点(x,y)所在格能不能走
+  const gx = Math.floor(x / T);                 // 像素 → 第几列
+  const gy = Math.floor(y / T);                 // 像素 → 第几行
+  if (!MAP[gy] || !MAP[gy][gx]) return true;    // 地图外 = 墙（走不出去）
+  if (MAP[gy][gx] === '#') return true;         // ① 地面层的墙
+  return solidInObject(gx, gy);                 // ② 物体的实心区（并集）
+}
+
+function hitsWall(x, y) {                       // 玩家方块(左上角x,y)是否撞墙
+  return solidAt(x, y) || solidAt(x + S, y) ||  // 检查四个角
+         solidAt(x, y + S) || solidAt(x + S, y + S);
+}
+
+// ==================== 7. 键盘输入 ====================
+const keys = {};                                // 记录"当前哪些键被按住"
+document.addEventListener("keydown", e => {
+  keys[e.code] = true;                          // 按下：标记为 true
+  if (e.code.startsWith("Arrow")) e.preventDefault(); // 别让方向键滚动页面
+});
+document.addEventListener("keyup", e => keys[e.code] = false); // 松开：标记为 false
+
+// ==================== 8. 游戏循环 ====================
+let last = 0;
+function update(t) {                            // 每帧执行，t = 当前时间(毫秒)
+  const dt = Math.min((t - last) / 1000, 0.05); // 这一帧过了多少秒（上限0.05防跳帧）
+  last = t;
+
+  let vx = 0, vy = 0;                           // 移动方向(±1)
+  if (keys["ArrowLeft"]  || keys["KeyA"]) vx = -1;
+  if (keys["ArrowRight"] || keys["KeyD"]) vx = 1;
+  if (keys["ArrowUp"]    || keys["KeyW"]) vy = -1;
+  if (keys["ArrowDown"]  || keys["KeyS"]) vy = 1;
+  if (vx && vy) { vx *= 0.707; vy *= 0.707; }   // 斜走时归一化，避免斜着更快
+
+  // 更新朝向（dir）和走路动画（frame）
+  const moving = vx !== 0 || vy !== 0;          // 这一帧是否在按移动键
+  if (moving) {
+    if (vx > 0) dir = 1;                        // 向右
+    else if (vx < 0) dir = 3;                   // 向左
+    else if (vy > 0) dir = 0;                   // 向下
+    else if (vy < 0) dir = 2;                   // 向上
+    animTime += dt;                             // 累计动画时间
+    frame = Math.floor(animTime / ANIM) % 4;    // 每 ANIM 秒换一帧，4 帧循环
+  } else {
+    animTime = 0;                               // 停下：重置计时
+    frame = 0;                                  // 站立姿态（第 0 帧）
+  }
+
+  px += vx * SPEED * dt;                        // 先沿 X 轴移动
+  if (hitsWall(px, py)) px -= vx * SPEED * dt;  // 撞墙就退回
+  py += vy * SPEED * dt;                        // 再沿 Y 轴移动
+  if (hitsWall(px, py)) py -= vy * SPEED * dt;
+
+  const cx = Math.floor((px + S / 2) / T);      // 玩家"中心点"所在的格子
+  const cy = Math.floor((py + S / 2) / T);
+  if (MAP[cy] && MAP[cy][cx] === 'D') location.href = "map2.html"; // 踩到门 → 跳转
+
+  draw();                                       // 画一帧
+  requestAnimationFrame(update);                // 预约下一帧，形成无限循环
+}
+
+// ==================== 9. 启动游戏（等所有图加载完） ====================
+function start() {                              // 图片全部就绪后才调用
+  draw();                                       // 画第一帧
+  requestAnimationFrame(update);                // 启动游戏循环
+}
+
+for (const name of names) {                     // 遍历每张贴图
+  img[name] = new Image();                      // 创建一个图片对象
+  img[name].onload = () => {                    // 先设定"加载完做什么"
+    loaded++;                                   // 计数器 +1
+    if (loaded === total) start();              // 最后一张也好了 → 启动
+  };
+  img[name].src = SHEETS[name];                 // 最后再触发加载（顺序不能反）
+}
+</script>
+</body>
+</html>
