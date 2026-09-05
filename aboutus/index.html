@@ -28,7 +28,7 @@
             </a>
         </div>
         <div class="nav-right">
-            <a href="#">1</a>
+            <a href="members/caq/index.html">岑安乾</a>
             <a href="members/lsh/index.html">刘书宏</a>
             <a href="members/cxr/index.html">陈曦然</a>
             <a href="members/jxy/index.html">戢歆雅</a>
@@ -59,13 +59,13 @@
     </main>
     <script>
         const members = [
-            { name: '1', role: '团队成员', link: 'members/lsh/index.html', avatar: '#' },
+            { name: '岑安乾', role: '团队负责人', link: 'members/caq/index.html', avatar: 'members/caq/images/default.jpeg' },
             { name: '刘书宏', role: '团队成员', link: 'members/lsh/index.html', avatar: 'members/lsh/images/lsh.jpg' },
             { name: '陈曦然', role: '团队成员', link: 'members/cxr/index.html', avatar: 'members/cxr/images/xxx.png' },
             { name: '戢歆雅', role: '团队成员', link: 'members/jxy/index.html', avatar: 'members/jxy/images/me.jpg' },
             { name: '陈子棋', role: '团队成员', link: 'members/czq/index.html', avatar: 'members/czq/images/czq.jpg' }
         ];
-        const projectImagePath = '#';
+        const projectImagePath = 'members/caq/images/background.png';
         const card = document.querySelector('.card');
         const cardName = document.querySelector('.card-name');
         const cardRole = document.querySelector('.card-role');
@@ -74,8 +74,20 @@
         const projectImage = document.querySelector('.project-image');
         const detailsButton = document.querySelector('.details-button');
         const cardCounter = document.querySelector('.card-counter');
+        const caqImageRoot = 'members/caq/images/';
+        const avatarCandidates = ['default.jpeg'];
+        const backgroundCandidates = ['background.png'];
         let currentIndex = 0;
-
+        function useFirstAvailable(names, apply) {
+            const image = new Image();
+            let index = 0;
+            image.onload = () => apply(caqImageRoot + names[index]);
+            image.onerror = () => {
+                index += 1;
+                if (index < names.length) image.src = caqImageRoot + names[index];
+            };
+            image.src = caqImageRoot + names[index];
+        }
         function showMember(index) {
             const member = members[index];
             cardName.textContent = member.name;
@@ -88,20 +100,17 @@
             cardCounter.textContent = `${index + 1}/${members.length}`;
             card.classList.remove('is-flipped');
         }
-        /*函数：向左还是右切换成员*/
         function changeMember(step) {
             currentIndex = (currentIndex + step + members.length) % members.length;
             showMember(currentIndex);
         }
-        /*在这里读取箭头*/
         document.querySelector('.card-arrow-left').addEventListener('click', () => changeMember(-1));
         document.querySelector('.card-arrow-right').addEventListener('click', () => changeMember(1));
-        /*点击时翻转卡牌*/
         card.addEventListener('click', (event) => {
-            if (!event.target.closest('.details-button')) {
-                card.classList.toggle('is-flipped');
-            }
+            if (!event.target.closest('.details-button')) card.classList.toggle('is-flipped');
         });
+        useFirstAvailable(avatarCandidates, (src) => { members[0].avatar = src; showMember(currentIndex); });
+        useFirstAvailable(backgroundCandidates, (src) => { projectImage.src = src; });
         showMember(currentIndex);
     </script>
 </body>
