@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡牌翻转</title>
+    <link rel="stylesheet" href="css/card-flip.css">
+    <link rel="stylesheet" href="css/intro_font.css">
+    <link rel="stylesheet" href="css/navi.css">
+</head>
+<body>
+    <style>
+        /*卡牌放大*/
+        .card {
+            transform-origin: center center;
+            transition: transform 0.35s linear;
+        }
+
+        .card:hover {
+            transform: scale(1.08);
+        }
+    </style>
+    <nav class="top-nav">
+        <div class="nav-left">
+            <a href="#" class="back-btn">
+                <span class="icon">←</span>
+                返回
+            </a>
+        </div>
+        <div class="nav-right">
+            <a href="members/caq/index.html">岑安乾</a>
+            <a href="members/lsh/index.html">刘书宏</a>
+            <a href="members/cxr/index.html">陈曦然</a>
+            <a href="members/jxy/index.html">戢歆雅</a>
+            <a href="members/czq/index.html">陈子棋</a>
+        </div>
+    </nav>
+    <main class="card-showcase" aria-label="团队成员">
+        <button class="card-arrow card-arrow-left" type="button" aria-label="上一张">&#10094;</button>
+        <div class="card" role="button" aria-label="点击翻转">
+            <div class="card-inner">
+                <div class="card-face card-front">
+                    <span class="card-label">成员</span>
+                    <img class="member-avatar" src="#" alt="成员头像">
+                    <h1 class="card-name"></h1>
+                    <p class="card-role"></p>
+                    <span class="flip-hint">点击卡牌翻面</span>
+                </div>
+                <div class="card-face card-back">
+                    <span class="card-label">个人简介</span>
+                    <img class="project-image" src="#" alt="项目照片">
+                    <h2 class="back-name"></h2>
+                    <a class="details-button" href="#">了解更多</a>
+                </div>
+            </div>
+        </div>
+        <button class="card-arrow card-arrow-right" type="button" aria-label="下一张">&#10095;</button>
+        <p class="card-counter" aria-live="polite">1/5</p>
+    </main>
+    <script>
+        const members = [
+            { name: '岑安乾', role: '团队负责人', link: 'members/caq/index.html', avatar: 'members/caq/images/default.jpeg' },
+            { name: '刘书宏', role: '团队成员', link: 'members/lsh/index.html', avatar: 'members/lsh/images/lsh.jpg' },
+            { name: '陈曦然', role: '团队成员', link: 'members/cxr/index.html', avatar: 'members/cxr/images/xxx.png' },
+            { name: '戢歆雅', role: '团队成员', link: 'members/jxy/index.html', avatar: 'members/jxy/images/me.jpg' },
+            { name: '陈子棋', role: '团队成员', link: 'members/czq/index.html', avatar: 'members/czq/images/czq.jpg' }
+        ];
+        const projectImagePath = 'members/caq/images/background.png';
+        const card = document.querySelector('.card');
+        const cardName = document.querySelector('.card-name');
+        const cardRole = document.querySelector('.card-role');
+        const backName = document.querySelector('.back-name');
+        const memberAvatar = document.querySelector('.member-avatar');
+        const projectImage = document.querySelector('.project-image');
+        const detailsButton = document.querySelector('.details-button');
+        const cardCounter = document.querySelector('.card-counter');
+        const caqImageRoot = 'members/caq/images/';
+        const avatarCandidates = ['default.jpeg'];
+        const backgroundCandidates = ['background.png'];
+        let currentIndex = 0;
+        function useFirstAvailable(names, apply) {
+            const image = new Image();
+            let index = 0;
+            image.onload = () => apply(caqImageRoot + names[index]);
+            image.onerror = () => {
+                index += 1;
+                if (index < names.length) image.src = caqImageRoot + names[index];
+            };
+            image.src = caqImageRoot + names[index];
+        }
+        function showMember(index) {
+            const member = members[index];
+            cardName.textContent = member.name;
+            cardRole.textContent = member.role;
+            backName.textContent = member.name;
+            memberAvatar.src = member.avatar;
+            memberAvatar.alt = `${member.name}的头像`;
+            projectImage.src = projectImagePath;
+            detailsButton.href = member.link;
+            cardCounter.textContent = `${index + 1}/${members.length}`;
+            card.classList.remove('is-flipped');
+        }
+        function changeMember(step) {
+            currentIndex = (currentIndex + step + members.length) % members.length;
+            showMember(currentIndex);
+        }
+        document.querySelector('.card-arrow-left').addEventListener('click', () => changeMember(-1));
+        document.querySelector('.card-arrow-right').addEventListener('click', () => changeMember(1));
+        card.addEventListener('click', (event) => {
+            if (!event.target.closest('.details-button')) card.classList.toggle('is-flipped');
+        });
+        useFirstAvailable(avatarCandidates, (src) => { members[0].avatar = src; showMember(currentIndex); });
+        useFirstAvailable(backgroundCandidates, (src) => { projectImage.src = src; });
+        showMember(currentIndex);
+    </script>
+</body>
+</html>

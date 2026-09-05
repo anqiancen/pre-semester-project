@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>岑安乾 | 个人介绍</title>
+  <link rel="stylesheet" href="../../css/navi.css">
+  <style>
+    :root { --ink: #fff8ed; --muted: #e8cbbb; --accent: #f6b65d; --panel: rgba(38, 14, 15, .82); --line: rgba(255, 226, 180, .38); }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; color: var(--ink); background: linear-gradient(90deg, rgba(31, 8, 10, .88), rgba(31, 8, 10, .34)), url("images/background.png") center / cover fixed; font-family: Georgia, "Microsoft YaHei", serif; }
+    main { width: min(1080px, calc(100% - 48px)); min-height: 100vh; margin: auto; display: grid; align-items: center; grid-template-columns: minmax(230px, .7fr) minmax(0, 1.3fr); gap: clamp(36px, 8vw, 120px); padding: 100px 0 64px; }
+    .portrait { text-align: center; }
+    .portrait img { width: min(280px, 70vw); aspect-ratio: 1; object-fit: cover; border: 8px solid rgba(255, 245, 220, .92); border-radius: 50%; box-shadow: 0 18px 45px rgba(0, 0, 0, .42); }
+    .portrait p { margin: 20px 0 0; color: var(--accent); letter-spacing: .22em; font-size: .82rem; }
+    section { padding: clamp(28px, 5vw, 56px); border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(6px); box-shadow: 0 24px 70px rgba(0, 0, 0, .3); }
+    .eyebrow { margin: 0 0 14px; color: var(--accent); font-size: .78rem; letter-spacing: .28em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2.5rem, 7vw, 5.4rem); font-weight: 400; line-height: 1; }
+    h2 { margin: 12px 0 30px; color: var(--muted); font-size: 1rem; font-weight: 400; letter-spacing: .16em; }
+    .intro { max-width: 34em; color: var(--muted); line-height: 1.9; }
+    dl { display: grid; grid-template-columns: 5.5em 1fr; gap: 14px 20px; margin: 34px 0 0; padding-top: 24px; border-top: 1px solid var(--line); }
+    dt { color: var(--accent); }
+    dd { margin: 0; color: var(--ink); }
+    @media (max-width: 700px) { main { width: min(100% - 32px, 520px); grid-template-columns: 1fr; gap: 34px; padding: 96px 0 36px; } .portrait img { width: 190px; } section { padding: 28px 24px; } }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <div class="nav-left">
+      <a href="../../index.html" class="back-btn">
+        <span class="icon">←</span>
+        返回
+      </a>
+    </div>
+    <div class="nav-right">
+      <a href="index.html" class="active">岑安乾</a>
+      <a href="../lsh/index.html">刘书宏</a>
+      <a href="../cxr/index.html">陈曦然</a>
+      <a href="../jxy/index.html">戢歆雅</a>
+      <a href="../czq/index.html">陈子棋</a>
+    </div>
+  </nav>
+  <main>
+    <div class="portrait">
+      <img src="images/default.jpeg" alt="史迪奇头像">
+      <p>ABOUT THE CREATOR</p>
+    </div>
+    <section>
+      <p class="eyebrow">Member · Team Introduction</p>
+      <h1>岑安乾</h1>
+      <h2>团队负责人 / 游戏开发</h2>
+      <p class="intro">Ciallo~(∠・ω< )⌒★ \n 我是岑安乾，计科牛马中的牛马。喜好足球，乒乓球，热爱fps游戏。现在是acmer&&aier。欢迎关注我的微信公众号这是某某</p>
+      <dl>
+        <dt>负责内容</dt>
+        <dd>团队主要工作，登录注册页面、网页交互与前端实现</dd>
+        <dt>某某</dt>
+        <dd>不要紧，山野都有雾灯</dd>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

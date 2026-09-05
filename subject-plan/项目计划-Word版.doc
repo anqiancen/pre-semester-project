@@ -1,0 +1,62 @@
+<html>
+<head>
+<meta charset="utf-8">
+<title>《雪线之外》网页游戏项目计划书</title>
+<style>
+body{font-family:"Microsoft YaHei",SimSun,sans-serif;line-height:1.65;color:#1f2937;margin:2.2cm 2.4cm;font-size:11pt} h1{text-align:center;color:#17324d;font-size:24pt} h2{color:#1d5b78;border-bottom:1px solid #9bb7c5;padding-bottom:4pt;margin-top:20pt} h3{color:#397d91} table{border-collapse:collapse;width:100%;margin:8pt 0 14pt} th,td{border:1px solid #9aaeb8;padding:5pt;vertical-align:top} th{background:#dceef2;color:#17324d}.cover{text-align:center;padding:70pt 0;border-bottom:2px solid #397d91}.meta{color:#526674}.note{background:#eef7f8;border-left:4px solid #397d91;padding:8pt}.tree,.flow{background:#f4f7f8;border:1px solid #b9cbd1;padding:10pt;white-space:pre-wrap;font-family:Consolas,monospace;font-size:9pt}.small{font-size:9pt;color:#526674}
+</style>
+</head>
+<body>
+<div class="cover"><h1>《雪线之外》网页游戏项目计划书</h1><p class="meta">网页端冰雪生存探索与卡牌策略游戏原型</p><p>计划周期：连续 3 周（21 天）</p><p>项目版本：原型验证版 1.0</p><p>编制依据：第一次会议记录、现有登录页与地图原型、剧情设计文档</p></div>
+<h2>一、项目是什么</h2>
+<p>《雪线之外》是一款运行在浏览器中的冰雪题材生存探索游戏。玩家扮演在极端寒冷环境中求生的角色，沿地图探索废弃观测站、临时营地等地点，通过与 NPC 对话、调查场景和使用卡牌获取物资与故事碎片，逐步拼凑出完整剧情。</p>
+<p>本阶段目标是在 3 周内交付一个可打开、可操作、可展示、可继续扩展的网页原型，完整呈现“登录/进入游戏—剧情引导—地图探索—事件触发—卡牌/物资决策—人物与诗词展示”的核心体验闭环。</p>
+<div class="note"><b>核心目标：</b>完成网页运行、冰雪视觉、碎片化叙事、基础生存资源、卡牌决策和 Git 协作规范的综合验证。</div>
+<h2>二、项目来源与背景</h2>
+<p>项目源于课程前期小组讨论。第一次会议已确定冰雪像素风、碎片化叙事和网页技术路线；仓库已有登录页面、地图页面、贴图资源以及剧情文档，项目已经从构想进入原型实现阶段。</p>
+<ul><li>冰雪环境具有寒冷、资源稀缺和未知探索等冲突，适合表现生存压力。</li><li>玩家通过 NPC 对话、地图调查和事件卡牌收集碎片，逐渐理解事件真相。</li><li>网页运行门槛低，便于协同开发、教师检查和现场展示。</li></ul>
+<h2>三、具体内容与功能结构</h2>
+<div class="tree">《雪线之外》网页游戏
++-- 登录与入口：登录、注册/身份信息、进入游戏
++-- 主界面：开始探索、人物卡牌、诗词推荐、小组介绍
++-- 剧情引导：序章对话、NPC 对话框、教学提示
++-- 冰雪地图：临时营地、废弃观测站、第三触发点、可调查物件
++-- 生存与卡牌：食物/子弹/火堆、基础回合制 PVE、事件卡牌
++-- 信息展示：角色详情、故事碎片、进度/状态</div>
+<h3>核心流程</h3>
+<div class="flow">打开网页 -> 登录/注册 -> 主界面 -> 剧情序章 -> 冰雪地图
+-> 选择地点 -> 对话/调查 -> 获得故事碎片或资源 -> 卡牌决策
+-> 资源反馈 -> 继续探索</div>
+<h3>功能细节</h3>
+<p><b>登录与注册：</b>完成输入校验和入口跳转。本阶段使用前端演示状态或 localStorage，不承诺真实账号系统。</p>
+<p><b>地图探索：</b>以冰雪像素场景为主体，地点采用可点击区域或按钮标识；返回时保留探索状态。</p>
+<p><b>剧情对话：</b>展示角色名、头像、正文和继续按钮；NPC 对话承担世界观说明与线索提示。</p>
+<p><b>碎片化叙事：</b>三个触发点各提供 NPC 对话、调查对象和故事碎片，碎片列表展示已获得内容。</p>
+<p><b>卡牌与资源：</b>先实现少量规则清晰的卡牌，影响食物、子弹、火堆或线索；每次使用都显示资源变化与故事反馈。</p>
+<h2>四、技术方案</h2>
+<table><tr><th>项目</th><th>方案</th></tr><tr><td>开发环境</td><td>Windows，Visual Studio Code</td></tr><tr><td>代码托管</td><td>GitHub：anqiancen/pre-semester-project</td></tr><tr><td>前端结构</td><td>HTML5、CSS3 外部样式表、原生 JavaScript</td></tr><tr><td>运行环境</td><td>Chrome、Edge、Firefox 等现代浏览器</td></tr><tr><td>数据方式</td><td>JavaScript 内存状态或 localStorage</td></tr><tr><td>发布方式</td><td>GitHub 预览或静态网页服务器</td></tr></table>
+<p>HTML 负责结构，CSS 负责样式，JavaScript 负责交互；公共样式放在外部 CSS 文件，变量、函数和文件名使用清晰的英文命名。测试时检查 Console 报错、Network 404、桌面端 1280×720 和移动端 390×844 的布局。</p>
+<h2>五、角色分工</h2>
+<table><tr><th>成员</th><th>主责</th><th>具体工作</th></tr><tr><td>陈子琪</td><td>地图、美术、统筹</td><td>地图代码、冰雪贴图、角色/界面素材、卡牌界面、README、项目计划与合并协助。</td></tr><tr><td>岑安乾</td><td>登录注册</td><td>登录/注册页面、输入校验、入口跳转和主流程联调。</td></tr><tr><td>季新雅</td><td>剧情与宣传</td><td>主线、NPC 对话、剧情节点、宣传视频和展示材料。</td></tr><tr><td>陈建安</td><td>剧情与关卡</td><td>三个触发点、调查内容、碎片化叙事逻辑。</td></tr><tr><td>书宏</td><td>卡牌规则与测试</td><td>卡牌、物资消耗、事件反馈和可玩性测试。</td></tr><tr><td>全体</td><td>协作与验收</td><td>Git 同步、素材确认、跨页面测试、问题记录和最终演示。</td></tr></table>
+<h2>六、完整三周时间表</h2>
+<table><tr><th>周次</th><th>主要工作</th><th>阶段验收</th></tr><tr><td>第 1 周（第 1—7 天）</td><td>确认范围与分工；整理剧情和卡牌草案；完成登录页、地图结构、基础对话、素材目录和 README 初稿。</td><td>登录、地图、剧情骨架可打开并演示；冻结第一版需求。</td></tr><tr><td>第 2 周（第 8—14 天）</td><td>确定卡牌规则；完成三个触发点内容；加入地点切换、状态记录、卡牌反馈、人物卡牌和诗词栏。</td><td>至少 3 种卡牌可操作；主流程无断点；完成第二次周检查。</td></tr><tr><td>第 3 周（第 15—21 天）</td><td>修复问题；统一视觉；桌面/移动/浏览器测试；补齐文档；完成视频、演示和最终回归。</td><td>冻结代码；从干净环境重新打开；完成提交和最终演示。</td></tr></table>
+<h2>七、进度与质量控制</h2>
+<ul><li>及时提交 GitHub，每周进行一次阶段演示。</li><li>每项任务必须有负责人、截止日和可验证结果。</li><li>登录入口、地图主流程、剧情触发和卡牌反馈为高优先级。</li><li>修复采用“复现步骤—预期—实际—负责人—状态”记录，由另一名成员复测。</li><li>验收检查功能、内容、视觉、技术、兼容性和协作记录六类指标。</li></ul>
+<h2>八、示例图与原型说明</h2>
+<p>现有 <b>map1.html</b>、<b>map2.html</b> 为地图原型；<b>winter_town.png</b>、<b>winter_beach.png</b> 和 <b>winter_outdoorsTileSheet.png</b> 为冰雪地图素材；<b>login/index.html</b> 为登录入口。正式演示时将使用这些素材和页面截图替换示意图。</p>
+<div class="flow">+------------------------------------------+
+| 雪线之外                         [人物] |
+|                                          |
+|       [冰雪地图/地点图像区域]            |
+|   [营地]       [观测站]       [?]        |
+|                                          |
+| 食物 06   子弹 03   火堆 01   碎片 02/06 |
+| [调查地点]          [打开卡牌]           |
++------------------------------------------+</div>
+<h2>九、风险与应对</h2>
+<table><tr><th>风险</th><th>应对措施</th></tr><tr><td>卡牌规则延迟</td><td>第 8 天前只保留 3 种基础卡牌，先完成接口与反馈。</td></tr><tr><td>素材不一致</td><td>第 1 周建立素材目录和尺寸规范，优先使用仓库已有资源。</td></tr><tr><td>成员时间冲突</td><td>任务文件可交接，高优先级任务至少一名成员了解状态。</td></tr><tr><td>跳转或资源失败</td><td>本地保存关键图片，每次合并后执行入口到结尾的冒烟测试。</td></tr></table>
+<h2>十、预期成果</h2>
+<p>三周结束时，项目应能从登录入口开始，完成剧情序章、进入冰雪地图、选择至少三个剧情地点、触发 NPC 对话、获得故事碎片、使用基础卡牌并查看人物/诗词内容。最终成果以核心体验完整且可验证为标准，并保留项目计划、README、会议记录和可运行原型。</p>
+<p class="small">注：本文件为 HTML 格式的 Word 兼容文档，使用 Microsoft Word 或 WPS 打开后可另存为标准 .docx 或导出 PDF。</p>
+</body>
+</html>

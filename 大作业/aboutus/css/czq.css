@@ -1,0 +1,35 @@
+body {
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
+}
+
+.profile-left {
+    text-align: left;
+}
+
+.profile-left h1 {
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.profile-left .subtitle {
+    font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    letter-spacing: 1px;
+}
+
+.profile-left .bio-section h2 {
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.profile-left .bio-section .tagline {
+    font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    font-weight: 400;
+    line-height: 1.9;
+}
+
+.profile-left .motto {
+    font-family: "STKaiti", "KaiTi", "楷体", serif;
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+}
