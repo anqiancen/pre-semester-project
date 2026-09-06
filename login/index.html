@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 | 冰原计划</title>
+  <style>
+    :root {
+      --ink: #172331;
+      --muted: #627383;
+      --blue: #2477a7;
+      --blue-dark: #145375;
+      --ice: #eef7f8;
+      --line: #d8e5e8;
+      --white: rgba(255, 255, 255, .92);
+      --danger: #b84b4b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background: #cfe3e8 url("background.png") center / cover fixed;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(115deg, rgba(9, 31, 47, .62), rgba(229, 243, 244, .22));
+      pointer-events: none;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+      padding: 32px 20px;
+    }
+
+    .shell {
+      display: grid;
+      width: min(940px, 100%);
+      min-height: 590px;
+      grid-template-columns: .88fr 1.12fr;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .55);
+      border-radius: 20px;
+      background: var(--white);
+      box-shadow: 0 28px 70px rgba(20, 52, 68, .28);
+    }
+
+    .welcome {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 44px;
+      color: white;
+      background: linear-gradient(155deg, rgba(19, 77, 106, .94), rgba(24, 124, 152, .72));
+    }
+
+    .welcome::after {
+      content: "";
+      position: absolute;
+      right: -80px;
+      bottom: -110px;
+      width: 270px;
+      height: 270px;
+      border: 1px solid rgba(255, 255, 255, .35);
+      border-radius: 50%;
+      box-shadow: 0 0 0 28px rgba(255, 255, 255, .08), 0 0 0 56px rgba(255, 255, 255, .06);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+
+    .brand img {
+      width: 54px;
+      height: 54px;
+      object-fit: cover;
+      border: 2px solid rgba(255, 255, 255, .8);
+      border-radius: 14px;
+      background: white;
+    }
+
+    .welcome-copy { position: relative; z-index: 1; }
+
+    .welcome h1 {
+      max-width: 8em;
+      margin: 0 0 18px;
+      font-size: clamp(2.2rem, 5vw, 4.2rem);
+      font-weight: 400;
+      line-height: 1.08;
+    }
+
+    .welcome p {
+      max-width: 22em;
+      margin: 0;
+      color: rgba(255, 255, 255, .78);
+      line-height: 1.9;
+    }
+
+    .location {
+      color: rgba(255, 255, 255, .72);
+      font-size: .82rem;
+      letter-spacing: .12em;
+    }
+
+    .form-panel {
+      display: flex;
+      align-items: center;
+      padding: 54px clamp(28px, 6vw, 78px);
+      background: rgba(255, 255, 255, .96);
+    }
+
+    .form-wrap { width: 100%; max-width: 390px; margin: auto; }
+
+    .form-heading { margin-bottom: 28px; }
+
+    .form-heading h2 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+
+    .form-heading p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+    .switcher {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-bottom: 28px;
+      padding: 4px;
+      border-radius: 10px;
+      background: var(--ice);
+    }
+
+    .switcher button {
+      padding: 10px;
+      border: 0;
+      border-radius: 7px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .switcher button.active {
+      color: var(--blue-dark);
+      background: white;
+      box-shadow: 0 2px 8px rgba(21, 76, 99, .12);
+      font-weight: 600;
+    }
+
+    .field { margin-bottom: 17px; }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #405364;
+      font-size: .88rem;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      outline: 0;
+      color: var(--ink);
+      background: #fbfdfe;
+      font: inherit;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(36, 119, 167, .12);
+    }
+
+    .password-box { position: relative; }
+    .password-box input { padding-right: 58px; }
+
+    .show-password {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      border: 0;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transform: translateY(-50%);
+      font-size: .78rem;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 4px 0 24px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .check input { width: auto; accent-color: var(--blue); }
+    .form-row a { color: var(--blue); text-decoration: none; }
+
+    .submit {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 8px;
+      color: white;
+      background: linear-gradient(100deg, var(--blue-dark), var(--blue));
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+      box-shadow: 0 8px 18px rgba(36, 119, 167, .2);
+      transition: transform .2s, box-shadow .2s;
+    }
+
+    .submit:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(36, 119, 167, .3); }
+    .message { min-height: 22px; margin: 13px 0 0; color: var(--blue-dark); font-size: .86rem; line-height: 1.5; }
+    .message.error { color: var(--danger); }
+    .register-only { display: none; }
+
+    @media (max-width: 720px) {
+      .page { padding: 16px; }
+      .shell { grid-template-columns: 1fr; min-height: 0; }
+      .welcome { min-height: 260px; padding: 28px; }
+      .welcome h1 { font-size: 2.5rem; }
+      .location { margin-top: 28px; }
+      .form-panel { padding: 36px 24px 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <main class="shell">
+      <section class="welcome">
+        <div class="brand">
+          <img src="logo.jpg" alt="项目 logo">
+          <span>冰原计划</span>
+        </div>
+        <div class="welcome-copy">
+          <h1>欢迎回到<br>我们的世界</h1>
+          <p>登录后继续探索故事、地图与每一个等待被发现的秘密。</p>
+        </div>
+        <div class="location">PRE-SEMESTER PROJECT · 2025</div>
+      </section>
+
+      <section class="form-panel">
+        <div class="form-wrap">
+          <div class="form-heading">
+            <h2 id="form-title">欢迎回来</h2>
+            <p id="form-subtitle">登录你的账号，继续你的探索旅程。</p>
+          </div>
+
+          <div class="switcher" role="tablist" aria-label="登录或注册">
+            <button type="button" class="active" data-mode="login">登录</button>
+            <button type="button" data-mode="register">注册</button>
+          </div>
+
+          <form id="account-form" novalidate>
+            <div class="field">
+              <label for="email">邮箱</label>
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="name@example.com" required>
+            </div>
+            <div class="field register-only">
+              <label for="nickname">昵称</label>
+              <input id="nickname" name="nickname" type="text" autocomplete="nickname" placeholder="给自己起一个名字">
+            </div>
+            <div class="field">
+              <label for="password">密码</label>
+              <div class="password-box">
+                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" minlength="6" required>
+                <button class="show-password" type="button" aria-label="显示密码">显示</button>
+              </div>
+            </div>
+            <div class="field register-only">
+              <label for="confirm-password">确认密码</label>
+              <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" placeholder="再次输入密码">
+            </div>
+            <div class="form-row" id="login-options">
+              <label class="check"><input type="checkbox" id="remember"> 记住账号</label>
+              <a href="#" id="forgot-link">忘记密码？</a>
+            </div>
+            <button class="submit" type="submit" id="submit-button">登录</button>
+            <p class="message" id="message" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const form = document.querySelector('#account-form');
+    const modeButtons = document.querySelectorAll('[data-mode]');
+    const registerFields = document.querySelectorAll('.register-only');
+    const title = document.querySelector('#form-title');
+    const subtitle = document.querySelector('#form-subtitle');
+    const submitButton = document.querySelector('#submit-button');
+    const loginOptions = document.querySelector('#login-options');
+    const message = document.querySelector('#message');
+    const password = document.querySelector('#password');
+    const nickname = document.querySelector('#nickname');
+    const confirmPassword = document.querySelector('#confirm-password');
+    let mode = 'login';
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      const isRegister = mode === 'register';
+      modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
+      registerFields.forEach((field) => { field.style.display = isRegister ? 'block' : 'none'; });
+      title.textContent = isRegister ? '创建账号' : '欢迎回来';
+      subtitle.textContent = isRegister ? '注册一个账号，加入这段旅程。' : '登录你的账号，继续你的探索旅程。';
+      submitButton.textContent = isRegister ? '注册' : '登录';
+      loginOptions.style.display = isRegister ? 'none' : 'flex';
+      password.autocomplete = isRegister ? 'new-password' : 'current-password';
+      message.textContent = '';
+      message.className = 'message';
+    }
+
+    modeButtons.forEach((button) => button.addEventListener('click', () => setMode(button.dataset.mode)));
+
+    document.querySelector('.show-password').addEventListener('click', (event) => {
+      const visible = password.type === 'text';
+      password.type = visible ? 'password' : 'text';
+      event.currentTarget.textContent = visible ? '显示' : '隐藏';
+    });
+
+    document.querySelector('#forgot-link').addEventListener('click', (event) => {
+      event.preventDefault();
+      message.textContent = '密码找回功能将在服务端接入后开放。';
+      message.className = 'message';
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      message.className = 'message';
+      if (!form.checkValidity()) {
+        message.textContent = '请填写正确的邮箱，并输入至少 6 位密码。';
+        message.className = 'message error';
+        form.reportValidity();
+        return;
+      }
+      if (mode === 'register' && password.value !== confirmPassword.value) {
+        message.textContent = '两次输入的密码不一致，请重新确认。';
+        message.className = 'message error';
+        return;
+      }
+      if (mode === 'register') {
+        localStorage.setItem('projectAccount', JSON.stringify({ email: email.value, nickname: nickname.value }));
+        message.textContent = '注册成功，可以使用这个账号登录了。';
+      } else {
+        message.textContent = '登录成功，欢迎回来。';
+      }
+    });
+
+    const savedAccount = JSON.parse(localStorage.getItem('projectAccount') || 'null');
+    if (savedAccount && savedAccount.email) document.querySelector('#email').value = savedAccount.email;
+  </script>
+</body>
+</html>

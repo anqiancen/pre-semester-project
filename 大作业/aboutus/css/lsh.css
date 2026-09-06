@@ -1,0 +1,264 @@
+/* 初始化一下 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+    font-family: 'Jost', sans-serif;
+    min-height: 100vh;
+    display: block;
+    padding: 20px;
+    background: #f0f2f5;
+    position: relative;
+}
+
+.profile-card {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+/* 左侧：文字内容 */
+.profile-left {
+    flex: 0 0 50%;
+    padding: 48px 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: transparent;
+    text-align: right;
+}
+
+.profile-left h1 {
+    font-size: 3.6rem;
+    font-weight: 900;
+    color: #1a1a2e;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+}
+
+.profile-left .subtitle {
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: #8888a0;
+    letter-spacing: 2px;
+    margin-bottom: 28px;
+    border-bottom: 2px solid #eaeef3;
+    padding-bottom: 18px;
+}
+
+.profile-left .bio-section {
+    margin-bottom: 22px;
+}
+
+.profile-left .bio-section h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+}
+
+.profile-left .bio-section .tagline {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #55556b;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.profile-left .bio-section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c2c44;
+    margin-top: 14px;
+    margin-bottom: 6px;
+}
+
+.profile-left .bio-section .hobby-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: right;
+}
+
+.profile-left .bio-section .hobby-list li {
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: #44445a;
+    display: inline-block;
+    padding-right: 20px;
+    padding-left: 0;
+    margin-right: 6px;
+    position: relative;
+}
+
+.profile-left .bio-section .hobby-list li::before {
+    content: "●";
+    position: absolute;
+    right: 0;
+    left: auto;
+    top: 0;
+    color: #6c7a8a;
+    font-size: 0.7rem;
+}
+
+.profile-left .motto {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #eaeef3;
+    font-size: 0.95rem;
+    font-weight: 300;
+    color: #66667e;
+    font-style: italic;
+    letter-spacing: 0.3px;
+}
+
+.profile-left .motto strong {
+    font-weight: 600;
+    color: #1a1a2e;
+    font-style: normal;
+}
+
+/* 右侧：照片 */
+.profile-right {
+    flex: 0 0 50%;
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    padding: 30px;
+}
+
+.profile-right img {
+    width: 100%;
+    height: 100%;
+    max-width: 380px;
+    max-height: 500px;
+    border-radius: 20px;
+    object-fit: cover;
+    display: block;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+}
+
+/*@media (max-width: 768px) {
+    .profile-card {
+        flex-direction: column-reverse;
+        height: auto;
+        max-height: none;
+        border-radius: 24px;
+    }
+
+    .profile-left {
+        flex: 1 1 auto;
+        padding: 32px 28px;
+    }
+
+    .profile-left h1 {
+        font-size: 2.8rem;
+    }
+
+    .profile-right {
+        flex: 0 0 280px;
+        width: 100%;
+        min-height: 280px;
+        background-position: top center;
+    }
+}
+
+@media (max-width: 480px) {
+    .profile-left {
+        padding: 24px 18px;
+    }
+
+    .profile-left h1 {
+        font-size: 2.2rem;
+    }
+
+    .profile-right {
+        flex: 0 0 200px;
+        min-height: 200px;
+    }
+}
+
+@media (max-width: 900px) {
+    .top-nav {
+        padding: 0 16px;
+        height: 56px;
+    }
+
+    .nav-left {
+        margin-left: 0;
+    }
+
+    .nav-right {
+        gap: 24px;
+        margin-right: 0;
+    }
+
+    .nav-right a {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .top-nav {
+        padding: 0 12px;
+        height: 50px;
+    }
+
+    .nav-left {
+        margin-left: 0;
+    }
+
+    .back-btn {
+        font-size: 0.8rem;
+        padding: 4px 10px;
+    }
+
+    .back-btn .icon {
+        font-size: 1rem;
+    }
+
+    .nav-right {
+        gap: 14px;
+        margin-right: 0;
+    }
+
+    .nav-right a {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-nav {
+        padding: 0 10px;
+        height: 46px;
+    }
+
+    .nav-right {
+        gap: 10px;
+    }
+
+    .nav-right a {
+        font-size: 0.65rem;
+    }
+
+    .back-btn {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+    }
+
+    .back-btn .icon {
+        font-size: 0.85rem;
+    }
+}*/

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"><title>地图 1 · 小镇</title>
+<style>
+  /* 注册自定义字体：之后 canvas 里用 font-family 名 "FZG_CN" 引用 */
+  @font-face { font-family: 'FZG_CN'; src: url('fonts/FZG_CN.ttf') format('truetype'); }
+</style>
+</head>
+<body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh">
+<canvas id="g"></canvas>
+<script src="dialogue.js"></script>
+<script>
+// ==================== 1. 常量 ====================
+const T = 32;             // 游戏里每个格子 32 像素
+const TILE = 16;          // 贴图集里每块贴图 16 像素
+const S = 24;             // 玩家碰撞盒边长
+const SPEED = 150;        // 移动速度：每秒走多少像素
+const ANIM = 0.15;        // 走路动画：每帧停留多少秒
+const FONT = "'FZG_CN', monospace";   // 全局字体（对话、提示都用它）
+
+// 相机（视口）：屏幕一次能看到的范围，比地图小，跟随玩家移动
+const VIEW_W = 1080;       // 视口宽（像素）
+const VIEW_H = 720;       // 视口高（像素）
+const HEADROOM = 12;      // 顶部留白（格数）：高出地图顶部的房顶
+const MARGIN = 2;         // 左/右/下留白（格数）：边缘的提示文字等
+
+// ==================== 1.5 背景音乐 ====================
+const bgm = new Audio("audio/winter_town_BGM.mp3");    // 本图 BGM（冬天小镇）
+bgm.loop = true;                                // 循环播放
+bgm.volume = 0.6;                               // 音量 0~1
+
+// 浏览器会拦自动播放：进图先试播，被拦就等第一次按键再播
+bgm.play().catch(() => {});
+document.addEventListener("keydown", () => bgm.play().catch(() => {}), { once: true });
+
+// ==================== 2. 地图数据（从 map_town.html 复制过来） ====================
+// 三层：地面 MAP / 网格物体 OBJ_MAP / 自由物体 FREE_OBJECTS，统一由 OBJ_TYPES 描述长相+碰撞
+
+// ---------- 第 1 层：地面（土地样式） ----------
+// '#'=边界  '.'=草地  '~'=水面  'D'=出入口  数字(2/4/5/6/8/9)=石板路的不同拼接边
+const MAP = [
+  "##################################################D#################################################",
+  "#..................................................................................................#",
+  "#...........................................................................~~~~~~~~~~~~~..........#",
+  "#...........................................................................~~~~~~~~~~~~~..........#",
+  "#...........................................................................~~~~~~~~~~~~~..........#",
+  "#...........................................................................~~~~~~~~~~~~~..........#",
+  "#...........................................................................~~~~~~~~~~~~~..........#",
+  "#..................................................................................................#",
+  "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+  "5555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555",
+  "8888888888888888888888888888888888888888888888888559888888888888888888888888888888888888888888888888",
+  "#...............................................4556...............................................#",
+  "#...............................................4556...............................................#",
+  "#...............................................4556...............................................#",
+  "#...............................................4556...............................................#",
+  "#...............................................4556...............................................#",
+  "#...............................................4556...............................................#",
+  "#...............................................4556...............................................#",
+  "#...............................................4556...............................................#",
+  "################################################4556################################################",
+];
+
+// 地面层贴图表：地图字符 → { 在哪张图, 第几列, 第几行, solid:是否挡路 }（不写 solid = 能走）
+const TILES = {
+  '.': { sheet: "outdoors", col: 1,  row: 9 },  // 草地
+  '#': { sheet: "outdoors", col: 1,  row: 9, solid: true },  // 边界（暂时也是草地，坐标待确认）
+  '~': { sheet: "outdoors", col: 8,  row: 13, solid: true },  // 水面
+  'D': { sheet: "outdoors", col: 11, row: 18 },  // 门/出入口（地图顶部 (50,0) 那格）
+  // 石板路（不同数字 = 不同拼接边）
+  '2': { sheet: "outdoors", col: 6,  row: 18 },
+  '5': { sheet: "outdoors", col: 6,  row: 19 },
+  '8': { sheet: "outdoors", col: 6,  row: 20 },
+  '4': { sheet: "outdoors", col: 5,  row: 19 },
+  '6': { sheet: "outdoors", col: 7,  row: 19 },
+  '9': { sheet: "outdoors", col: 11, row: 22 },
+};
+
+// ---------- 物品"类型"注册表 ----------
+// ★ 锚点（ax/ay）：表示"你写 col/row 的那一格落在脚印第几列/第几行"。贴图左上角 = (col - ax, row - ay)。
+const OBJ_TYPES = {
+  tree: {                       // 树：上树冠能走、下树根挡路，锚点在树根
+    sheet: "outdoors", sx: 160, sy: 256,
+    sw: TILE, sh: TILE * 2, ax: 0, ay: 1,
+    mask: [".", "#"],
+  },
+  flower: {                     // 花
+    sheet: "outdoors", sx: 112, sy: 160,
+    sw: TILE, sh: TILE, ax: 0, ay: 0,
+    mask: ["#"],
+  },
+  border: {                     // 边界草
+    sheet: "outdoors", sx: 304, sy: 144,
+    sw: TILE, sh: TILE * 2, ax: 0, ay: 1,
+    mask: ["#"],
+  },
+  barrel: {                     // 桶
+    sheet: "outdoors", sx: 320, sy: 944,
+    sw: TILE * 2, sh: TILE * 2, ax: 0, ay: 1,
+    mask: ["##", "##"],
+  },
+  water_barrel: {               // 宽水桶
+    sheet: "outdoors", sx: 288, sy: 128,
+    sw: TILE * 2, sh: TILE, ax: 0, ay: 0,
+    mask: ["##"],
+  },
+  house: {                      // 大房子：12×10，锚点在脚下（ay=10），向上伸 10 格
+    sheet: "town", sx: 192, sy: 640,
+    sw: TILE * 12, sh: TILE * 10, ax: 0, ay: 10,
+    mask: [
+      "############", "############", "############", "############", "############",
+      "############", "############", "############", "############", "############",
+    ],
+  },
+  barn: {                       // 谷仓：7×8，锚点在左上角
+    sheet: "barn", sx: 0, sy: 0,
+    sw: TILE * 7, sh: TILE * 8, ax: 0, ay: 0,
+    mask: [
+      ".......", ".......", ".......", "#######",
+      "#######", "#######", "#######", "#######",
+    ],
+  },
+};
+
+// ---------- 第 2 层：网格物体（字符画，逐格对齐地面） ----------
+const OBJ_MAP = [
+  "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+  "...........................................................................b.w.w.w.w.w.w............",
+  "..T.........T............T................T............T..............T....b............b...T...T...",
+  "...........................................................................b............b...........",
+  "...........................................................................b............b.T.........",
+  "..............................................T......T.....................b............b...........",
+  "...........................................................................b............b...........",
+  ".........F..............................F..................................bbbbbbbbbbbbbb.T.........",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "..............................................T......T..............F...............................",
+  ".........F..............................F...........................................................",
+  "..T.........T............T................T............T..............T.....................T...T...",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+];
+
+// 物体字符 → 类型名（要和 OBJ_TYPES 里的键对上）
+const OBJ_CHAR = { T: "tree", F: "flower", B: "border", b: "barrel", w: "water_barrel" };
+
+// ---------- 第 3 层：自由物体清单（精确坐标，放大物件） ----------
+const FREE_OBJECTS = [
+  { type: "house", col: 6,  row: 9 },
+  { type: "house", col: 44, row: 9 },
+  { type: "house", col: 60, row: 3 },
+  { type: "barn",  col: 60, row: 11 },
+];
+
+// ---------- 贴图集 ----------
+const SHEETS = {
+  outdoors: "img/winter_outdoorsTileSheet.png",
+  town:     "img/winter_town.png",
+  houses:   "img/houses.png",
+  barn:     "img/Deluxe Barn.png",
+  alex:     "img/Alex.png",              // 玩家贴图（游戏引擎用）
+  npc:      "img/Bouncer.png",           // NPC 贴图
+};
+
+// ==================== 3. 加载贴图 + 画布 ====================
+const img = {};                    // 存放加载好的图片对象
+const names = Object.keys(SHEETS);
+let loaded = 0;                    // 已加载计数
+
+const g = document.getElementById("g");
+g.width = VIEW_W;                  // 画布 = 视口大小（不是地图大小）
+g.height = VIEW_H;
+const c = g.getContext("2d");
+c.imageSmoothingEnabled = false;   // 关闭平滑：像素风清晰
+
+// 合并第 2、3 层，生成统一的 OBJECTS 数组
+function makeObj(type, col, row) {
+  return Object.assign({ col, row }, OBJ_TYPES[type]);
+}
+
+function buildObjects() {
+  const objs = [];
+  for (let y = 0; y < OBJ_MAP.length; y++)
+    for (let x = 0; x < OBJ_MAP[y].length; x++) {
+      const type = OBJ_CHAR[OBJ_MAP[y][x]];
+      if (type) objs.push(makeObj(type, x, y));
+    }
+  for (const o of FREE_OBJECTS)
+    objs.push(makeObj(o.type, o.col, o.row));
+  return objs;
+}
+
+const OBJECTS = buildObjects();
+
+// ==================== 4. 玩家状态 ====================
+let px = 49 * T + 4, py = 9 * T + 4;   // 出生点：横竖主路交汇处（世界坐标）
+let dir = 0;                           // 朝向：0=下 1=右 2=上 3=左
+
+// 从别的图传送过来时，用 URL 里的出生点覆盖默认位置（?x=..&y=..&dir=..）
+const spawnQ = new URLSearchParams(location.search);
+if (spawnQ.get("x")) {
+  px = parseFloat(spawnQ.get("x"));
+  py = parseFloat(spawnQ.get("y"));
+  dir = parseInt(spawnQ.get("dir") || "0", 10);
+}
+let frame = 0;                         // 动画帧 0~3
+let animTime = 0;                      // 动画计时
+
+// ==================== 4.5 动态实体（NPC / 可交互物） ====================
+const ENTITIES = [
+  {
+    kind: "npc",
+    x: 49 * T, y: 11 * T,     // 站在出生点正下方两格（世界坐标）
+    sheet: "npc",             // = img/Bouncer.png
+    solid: true,              // 挡路
+    dialogue: "winter_mayor",        // 对应 dialogue.js 里的对话段名
+  },
+  {                            // 传送点：地图最左端 → 秋天
+    kind: "warp",
+    x: 0 * T, y: 9 * T,       // 最左端横路（第 9 行）
+    solid: true,              // 挡路：玩家走到这停下、面朝它按 Z
+    prompt: "回到秋天",        // 提示文字
+    to: "map1.html",          // 跳转目标
+    spawn: { x: 97 * T + 4, y: 9 * T + 4, dir: 3 },  // 在 map1 右边横路出生，面朝左
+  },
+];
+
+let state = "play";           // 游戏状态："play" 正常 / "talk" 对话中
+let cur = null;               // 当前对话的页面数组
+let page = 0;                 // 当前页码
+let choiceIdx = 0;            // 选项光标
+
+// ==================== 5. 相机 ====================
+let camX = 0, camY = 0;                // 相机左上角的世界坐标
+
+function updateCamera() {
+  camX = px + S / 2 - VIEW_W / 2;      // 玩家中心对齐视口中心
+  camY = py + S / 2 - VIEW_H / 2;
+  // 夹住相机：四边都留一点余量，让边缘的提示文字、高出地图的房顶能显示
+  camX = Math.max(-MARGIN * T, Math.min(camX, MAP[0].length * T - VIEW_W + MARGIN * T));
+  camY = Math.max(-HEADROOM * T, Math.min(camY, MAP.length * T - VIEW_H + MARGIN * T));
+}
+
+// ==================== 6. 画图 ====================
+function draw() {
+  updateCamera();
+
+  c.fillStyle = "#000";                    // 清屏（视口外的空白填黑）
+  c.fillRect(0, 0, VIEW_W, VIEW_H);
+
+  c.save();
+  c.translate(-camX, -camY);               // 把世界坐标平移到视口里
+
+  // 6.1 地面层
+  for (let y = 0; y < MAP.length; y++)
+    for (let x = 0; x < MAP[y].length; x++) {
+      const t = TILES[MAP[y][x]];
+      if (t) c.drawImage(img[t.sheet],
+                         t.col * TILE, t.row * TILE, TILE, TILE,   // 源
+                         x * T, y * T, T, T);                       // 目标（世界坐标）
+    }
+
+  drawActors();                            // 6.2 物体 + 玩家 + 实体（按脚底 y 排序）
+  if (state === "play") drawPrompts();     // 6.3 面前有可对话实体时，头顶画"▼ [Z]"
+  c.restore();
+
+  if (state === "talk") drawDialogue();    // 6.4 对话中：屏幕坐标画对话框（不跟相机走）
+}
+
+function drawPlayer() {
+  const SCALE = T / TILE;
+  const pw = TILE * SCALE;                 // 玩家图宽 32
+  const ph = TILE * 2 * SCALE;             // 玩家图高 64
+  const sx = frame * TILE;
+  const sy = dir * TILE * 2;
+  const dx = px + S / 2 - pw / 2;          // 水平居中于碰撞盒
+  const dy = py + S - ph;                  // 脚底对齐碰撞盒底部，身体向上延伸
+  c.drawImage(img.alex, sx, sy, TILE, TILE * 2, dx, dy, pw, ph);
+}
+
+function drawObject(o) {
+  const SCALE = T / TILE;
+  const dx = (o.col - o.ax) * T;           // 贴图左上角 = 锚点格 - 锚点偏移
+  const dy = (o.row - o.ay) * T;
+  c.drawImage(img[o.sheet], o.sx, o.sy, o.sw, o.sh, dx, dy, o.sw * SCALE, o.sh * SCALE);
+}
+
+function drawEntity(e) {                  // 画动态实体：单帧 16×32 精灵，脚底对齐碰撞盒
+  if (!e.sheet) return;                   // 隐形实体（如传送点）不画精灵，只画提示
+  const SCALE = T / TILE;
+  const w = TILE * SCALE, h = TILE * 2 * SCALE;
+  c.drawImage(img[e.sheet], 0, 0, TILE, TILE * 2, e.x + S / 2 - w / 2, e.y + S - h, w, h);
+}
+
+function drawPrompt(e) {                  // 在实体头顶画提示（NPC 用 ▼，传送点用 ▶ + 文字）
+  const SCALE = T / TILE;
+  const headTop = e.y + S - TILE * 2 * SCALE;   // 精灵顶边（头顶）
+  const tx = e.x + S / 2, ty = headTop - 8;     // 头顶正上方一点
+  const label = e.prompt ? "▶ [Z] " + e.prompt : "▼ [Z]";
+
+  c.font = "bold 13px " + FONT;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  const w = Math.max(44, c.measureText(label).width + 12);  // 底框宽度随文字自适应
+  c.fillStyle = "rgba(0,0,0,0.7)";               // 半透明底，任何背景都看得清
+  c.fillRect(tx - w / 2, ty - 8, w, 16);
+  c.fillStyle = "#ffe14d";                       // 淡黄，醒目
+  c.fillText(label, tx, ty + 1);
+  c.textAlign = "left";                          // 复位，避免影响其它文字
+  c.textBaseline = "alphabetic";
+}
+
+function drawPrompts() {                 // 玩家面前有可对话实体时，画提示
+  const e = entityInFront();
+  if (e) drawPrompt(e);
+}
+
+function drawActors() {
+  const actors = [];
+  for (const o of OBJECTS)
+    actors.push({ footY: (o.row - o.ay) * T + o.sh * (T / TILE), kind: "obj", obj: o });
+  for (const e of ENTITIES)
+    actors.push({ footY: e.y + S, kind: "ent", ent: e });
+  actors.push({ footY: py + S, kind: "player" });
+
+  actors.sort((a, b) => a.footY - b.footY);   // 脚底越小越靠上，先画（被后面的盖住）
+
+  for (const a of actors) {
+    if (a.kind === "player") drawPlayer();
+    else if (a.kind === "ent") drawEntity(a.ent);
+    else drawObject(a.obj);
+  }
+}
+
+// ==================== 7. 碰撞检测 ====================
+function solidInObject(gx, gy) {             // 这格是否被某物体实心区挡路
+  for (const o of OBJECTS) {
+    const fx = gx - (o.col - o.ax);          // 相对脚印左上角的偏移
+    const fy = gy - (o.row - o.ay);
+    if (o.mask[fy] && o.mask[fy][fx] === '#') return true;
+  }
+  return false;
+}
+
+function solidInEntity(x, y) {               // 这像素点是否在某个实心实体（NPC）的碰撞盒里
+  for (const e of ENTITIES) {
+    if (!e.solid) continue;
+    if (x >= e.x && x < e.x + S && y >= e.y && y < e.y + S) return true;
+  }
+  return false;
+}
+
+function solidAt(x, y) {                     // 像素点(x,y)所在格能不能走
+  const gx = Math.floor(x / T);
+  const gy = Math.floor(y / T);
+  if (!MAP[gy] || !MAP[gy][gx]) return true; // 地图外 = 墙
+  const t = TILES[MAP[gy][gx]];              // 查地面字符
+  if (t && t.solid) return true;             // ① 地面层：带 solid 的地物挡路
+  if (solidInObject(gx, gy)) return true;    // ② 静态物体：mask 的实心区
+  if (solidInEntity(x, y)) return true;      // ③ 动态实体（NPC）
+  return false;
+}
+
+function hitsWall(x, y) {                    // 玩家方块(左上角x,y)是否撞墙
+  return solidAt(x, y) || solidAt(x + S, y) ||
+         solidAt(x, y + S) || solidAt(x + S, y + S);
+}
+
+// ==================== 7.5 交互与对话 ====================
+function startDialogue(e) {
+  cur = DIALOGUE[e.dialogue];                // 取对话页面数组
+  page = 0;
+  choiceIdx = 0;
+  state = "talk";
+}
+
+function entityInFront() {                   // 返回"玩家面前那格"的实体（没有则 null）
+  const cx = Math.floor((px + S / 2) / T);
+  const cy = Math.floor((py + S / 2) / T);
+  const fx = cx + (dir === 1) - (dir === 3);  // 面前那格（按朝向）
+  const fy = cy + (dir === 0) - (dir === 2);
+  for (const e of ENTITIES) {
+    const ex = Math.floor((e.x + S / 2) / T);
+    const ey = Math.floor((e.y + S / 2) / T);
+    if (ex === fx && ey === fy && (e.dialogue || e.to)) return e;
+  }
+  return null;
+}
+
+function interact() {                        // 按 Z：和"面前那一格"的实体互动
+  const e = entityInFront();
+  if (!e) return;
+  if (e.to) {                                // 传送点：跳转到目标地图的出生点
+    const s = e.spawn || { x: 0, y: 0, dir: 0 };
+    location.href = e.to + "?x=" + Math.round(s.x) + "&y=" + Math.round(s.y) + "&dir=" + (s.dir || 0);
+  } else if (e.dialogue) {                   // 对话 NPC
+    startDialogue(e);
+  }
+}
+
+function talkUpdate() {                      // 对话中：处理翻页 / 选项
+  const p = cur[page];
+  if (p.choices) {
+    const n = p.choices.length;
+    if (pressed("ArrowUp")   || pressed("KeyW")) choiceIdx = (choiceIdx - 1 + n) % n;
+    if (pressed("ArrowDown") || pressed("KeyS")) choiceIdx = (choiceIdx + 1) % n;
+    if (pressed("KeyZ") || pressed("Enter")) {   // 确认选择
+      const next = p.choices[choiceIdx].next;
+      if (next) { cur = DIALOGUE[next]; page = 0; choiceIdx = 0; }
+      else state = "play";
+    }
+    if (pressed("KeyX") || pressed("ShiftLeft")) state = "play";  // 取消
+  } else {
+    if (pressed("KeyZ") || pressed("Enter")) {   // 翻下一页
+      page++;
+      if (page >= cur.length) state = "play";    // 翻完 = 结束对话
+    }
+  }
+}
+
+function drawDialogue() {                    // 屏幕坐标：底部对话框
+  const p = cur[page];
+  const bx = 16, by = VIEW_H - 120, bw = VIEW_W - 32, bh = 104;
+  c.fillStyle = "rgba(0,0,0,0.85)";
+  c.fillRect(bx, by, bw, bh);
+  c.strokeStyle = "#fff";
+  c.strokeRect(bx, by, bw, bh);
+  c.fillStyle = "#fff";
+  c.font = "16px " + FONT;
+
+  if (p.choices) {
+    c.fillText(p.text, bx + 16, by + 26);
+    for (let i = 0; i < p.choices.length; i++)
+      c.fillText((i === choiceIdx ? "▶ " : "    ") + p.choices[i].label, bx + 16, by + 56 + i * 24);
+  } else {
+    c.fillText(p.text, bx + 16, by + 34);
+    c.fillText("▼ Z", bx + bw - 48, by + bh - 18);
+  }
+}
+
+// ==================== 8. 键盘输入 ====================
+const keys = {};        // 按住状态（移动用）
+const just = {};        // 这一帧"刚按下"（交互/对话用）
+document.addEventListener("keydown", e => {
+  keys[e.code] = true;
+  just[e.code] = true;
+  if (e.code.startsWith("Arrow")) e.preventDefault();
+});
+document.addEventListener("keyup", e => keys[e.code] = false);
+
+function pressed(code) { return just[code]; }   // 这一帧是否刚按下这个键
+
+// ==================== 9. 游戏循环 ====================
+let last = 0;
+function update(t) {
+  const dt = Math.min((t - last) / 1000, 0.05);
+  last = t;
+
+  if (state === "talk") {           // 对话中：只翻页/选选项，跳过移动
+    talkUpdate();
+    draw();
+    for (const k in just) just[k] = false;
+    requestAnimationFrame(update);
+    return;
+  }
+
+  let vx = 0, vy = 0;
+  if (keys["ArrowLeft"]  || keys["KeyA"]) vx = -1;
+  if (keys["ArrowRight"] || keys["KeyD"]) vx = 1;
+  if (keys["ArrowUp"]    || keys["KeyW"]) vy = -1;
+  if (keys["ArrowDown"]  || keys["KeyS"]) vy = 1;
+  if (vx && vy) { vx *= 0.707; vy *= 0.707; }
+
+  const moving = vx !== 0 || vy !== 0;
+  if (moving) {
+    if (vx > 0) dir = 1;
+    else if (vx < 0) dir = 3;
+    else if (vy > 0) dir = 0;
+    else if (vy < 0) dir = 2;
+    animTime += dt;
+    frame = Math.floor(animTime / ANIM) % 4;
+  } else {
+    animTime = 0;
+    frame = 0;
+  }
+
+  px += vx * SPEED * dt;
+  if (hitsWall(px, py)) px -= vx * SPEED * dt;
+  py += vy * SPEED * dt;
+  if (hitsWall(px, py)) py -= vy * SPEED * dt;
+
+  const cx = Math.floor((px + S / 2) / T);   // 玩家中心所在格
+  const cy = Math.floor((py + S / 2) / T);
+  if (MAP[cy] && MAP[cy][cx] === 'D') location.href = "map2.html"; // 踩到门 → 跳转
+
+  if (pressed("KeyZ") || pressed("Enter")) interact();   // 按 Z 互动
+
+  draw();
+  for (const k in just) just[k] = false;                 // 清空"刚按下"标记
+  requestAnimationFrame(update);
+}
+
+// ==================== 10. 启动（等所有图加载完） ====================
+function start() {
+  draw();
+  requestAnimationFrame(update);
+}
+
+for (const name of names) {
+  img[name] = new Image();
+  img[name].onload = () => {
+    loaded++;
+    if (loaded === names.length) start();
+  };
+  img[name].src = SHEETS[name];
+}
+</script>
+</body>
+</html>

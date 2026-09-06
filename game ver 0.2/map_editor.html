@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"><title>地图编辑器（静态预览）</title>
+</head>
+<body style="margin:0;background:#111;color:#bbb;font:14px/1.7 monospace;padding:24px">
+<div style="margin-bottom:16px">
+  <b style="color:#fff">地图编辑器</b>：只改下面「地图数据区」的代码，保存后刷新浏览器（Cmd/Ctrl + R）即可看到地图。<br>
+  做满意后，把「地图数据区」这一整块（<span style="color:#ffd75f">从 <code>const MAP</code> 到 <code>const SHEETS</code></span>）复制回游戏文件（map1.html）的对应位置即可。
+</div>
+<canvas id="g"></canvas>
+<script>
+// ==================== 1. 常量 ====================
+const T = 32;             // 游戏里每个格子 32 像素（画布上的大小，即"目标尺寸"）
+const TILE = 16;          // 贴图集里每块贴图 16 像素（原图里的大小，即"源尺寸"）
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║   ★★★★★ 地图数据区 ★★★★★   （做地图只改这里，改完整块复制回游戏）  ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// ---------- 第 1 层：地面（土地样式） ----------
+
+const MAP = [
+  "####################................................",
+  "#..................#................................",
+  "#..................#................................",
+  "#..................#................................",
+  "#..................#................................",
+  "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR..............",
+  "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+  "....................................RRRRRRRRRRRRRRRR",
+  "#..................#................................",
+  "#..................#................................",
+  "#..................#................................",
+  "####################................................",
+];
+
+// 地面层贴图表：地图字符 → { 在哪张图, 第几列, 第几行 }
+// 列/行 用 tiles_viewer.html 悬停查看确认
+const TILES = {
+  '.': { sheet: "outdoors", col: 6,  row: 19 },  // 草地/雪地：源像素(96,304)
+  '#': { sheet: "outdoors", col: 22, row: 44, solid: true },  // 悬崖/边界（挡路）
+  'D': { sheet: "outdoors", col: 11, row: 18 },  // 门
+};
+
+// ---------- 物品"类型"注册表 ----------
+// 每种物品登记一次：长相(哪张图+源位置+源大小) + 锚点 + 碰撞足迹。
+// 第 2、3 层只负责说"在哪放"，不重复写 sx/sy/sw/sh。
+//
+// ★ 锚点（ax / ay）：
+//   一个物体占的格子范围叫"脚印"（宽 = sw/TILE 列，高 = sh/TILE 行）。
+//   ax/ay 表示"你写 col/row 的那一格，落在脚印的第几列、第几行"（从 0 数）。
+//   贴图左上角 = (col - ax, row - ay)。
+//   好处：地图里写 'T' 的那格，指的就是树的"树根"而不是树冠。
+const OBJ_TYPES = {
+  // 树：1 列 × 2 行。上面树冠(能走，人藏在下面)，下面树根(挡路)。
+  // 锚点 = 树根(第 0 列、第 1 行) → 地图里写 'T' 的那格就是树根。
+  tree: {
+    sheet: "outdoors",            // 用哪张贴图集
+    sx: 160, sy: 256,             // 源：贴图集里树冠那格的左上角像素
+    sw: TILE, sh: TILE * 2,       // 源大小：1 格宽、2 格高
+    ax: 0, ay: 1,                 // 锚点：在脚印的第 0 列、第 1 行（树根）
+    mask: [".", "#"],             // 碰撞足迹：第 0 行树冠能走，第 1 行树根挡路
+  },
+
+  // 花盆：1×1，纯实心。锚点 = 自己那格。
+  flowerpot: {
+    sheet: "outdoors",
+    sx: 0, sy: 0,                 // TODO：用 tiles_viewer.html 确认花盆的源坐标（当前是占位）
+    sw: TILE, sh: TILE,
+    ax: 0, ay: 0,
+    mask: ["#"],
+  },
+
+  // 房子：大物件示例，占 4 列 × 3 行（尺寸按你实际贴图调）。
+  // 锚点 = 左上角，因为"摆房子"最自然的是指它的左上角。
+  house: {
+    sheet: "town",                // 房子贴图在 img/winter_town.png 里
+    sx: 0, sy: 0,                 // TODO：确认房子贴图的源坐标（当前是占位）
+    sw: TILE * 4, sh: TILE * 3,   // 4 格宽 × 3 格高
+    ax: 0, ay: 0,
+    mask: [                       // 全部实心（占位）；以后可细分出门、墙
+      "####",
+      "####",
+      "####",
+    ],
+  },
+};
+
+// ---------- 第 2 层：网格物体（字符画，逐格对齐地面） ----------
+// '.' = 不放东西；'T' = 树；'F' = 花盆。
+// 注意：'T' 写在哪格，树根就在哪格（锚点 ay=1），树冠自动向上伸一格。
+const OBJ_MAP = [
+  "....................",
+  ".T................T.",
+  "....................",
+  "....F...............",
+  "........T...........",
+  "....................",
+  "....................",
+  "..........F.........",
+  "....................",
+  ".......T............",
+  "....................",
+  "....................",
+];
+
+// 物体字符 → 类型名（要和 OBJ_TYPES 里的键对上）
+const OBJ_CHAR = { T: "tree", F: "flowerpot" };
+
+// ---------- 第 3 层：自由物体清单（精确坐标，可放大物、可重叠） ----------
+// 每一项：{ type: 类型名, col: 列, row: 行 }
+const FREE_OBJECTS = [
+  { type: "house",     col: 5, row: 5 },  // 房子：锚点=左上角，占 (5,5)~(8,7)
+  { type: "flowerpot", col: 5, row: 5 },  // 花盆：故意压在房子左上角 → 演示重叠/遮挡
+];
+
+// ---------- 贴图集（这张地图要用到的图） ----------
+// 注意：玩家图 alex 由游戏引擎单独加载，这里不用列；
+// 若你在这里加了新图（如 beach），记得在游戏文件里也同步加一行。
+const SHEETS = {
+  outdoors: "img/spring_outdoorsTileSheet.png",
+  town:     "img/spring_town.png",              // 房子等大物件
+  // beach: "img/winter_beach.png",             // 要用就取消注释
+};
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║   ★★★★★ 预览引擎 ★★★★★   （下面代码不用复制，游戏里已有对应逻辑）  ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// 画布自动适配地图大小（地图多大，画布多大）
+const g = document.getElementById("g");
+g.width  = MAP[0].length * T;
+g.height = MAP.length * T;
+const c = g.getContext("2d");
+c.imageSmoothingEnabled = false;          // 关闭平滑：像素风更清晰
+
+// 合并第 2、3 层，生成统一的 OBJECTS 数组
+function makeObj(type, col, row) {
+  return Object.assign({ col, row }, OBJ_TYPES[type]);
+}
+
+function buildObjects() {
+  const objs = [];
+  // 第 2 层：扫字符画，见字符就按"字符所在格"生成物体
+  for (let y = 0; y < OBJ_MAP.length; y++)
+    for (let x = 0; x < OBJ_MAP[y].length; x++) {
+      const type = OBJ_CHAR[OBJ_MAP[y][x]];
+      if (type) objs.push(makeObj(type, x, y));
+    }
+  // 第 3 层：直接按清单的精确坐标生成
+  for (const o of FREE_OBJECTS)
+    objs.push(makeObj(o.type, o.col, o.row));
+  return objs;
+}
+
+const OBJECTS = buildObjects();
+
+// ---------- 画图 ----------
+function draw() {
+  // 先画地面层
+  for (let y = 0; y < MAP.length; y++)
+    for (let x = 0; x < MAP[y].length; x++) {
+      const t = TILES[MAP[y][x]];
+      if (t) c.drawImage(img[t.sheet],
+                         t.col * TILE, t.row * TILE, TILE, TILE,   // 源
+                         x * T, y * T, T, T);                       // 目标
+    }
+  drawActors();       // 再画物体层（按脚底 y 排序，解决前后遮挡）
+}
+
+function drawObject(o) {
+  const SCALE = T / TILE;
+  const dx = (o.col - o.ax) * T;           // 贴图左上角 = 锚点格 - 锚点偏移
+  const dy = (o.row - o.ay) * T;
+  c.drawImage(img[o.sheet], o.sx, o.sy, o.sw, o.sh, dx, dy, o.sw * SCALE, o.sh * SCALE);
+}
+
+function drawActors() {
+  const actors = [];
+  for (const o of OBJECTS)
+    actors.push({ footY: (o.row - o.ay) * T + o.sh * (T / TILE), obj: o });
+  actors.sort((a, b) => a.footY - b.footY);  // 脚底越小越靠上，先画（被后面的盖住）
+  for (const a of actors) drawObject(a.obj);
+}
+
+// ---------- 加载贴图，加载完画一帧 ----------
+const img = {};
+const names = Object.keys(SHEETS);
+let loaded = 0;
+for (const name of names) {
+  img[name] = new Image();
+  img[name].onload = () => { if (++loaded === names.length) draw(); };
+  img[name].src = SHEETS[name];
+}
+</script>
+</body>
+</html>

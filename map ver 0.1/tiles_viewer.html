@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>贴图查看器</title></head>
+<body style="margin:0;background:#111;color:#eee;font-family:monospace">
+<div id="info" style="position:fixed;top:0;left:0;padding:8px;background:#000">把鼠标移到图上，看格子坐标</div>
+<canvas id="g"></canvas>
+<script>
+const img = new Image();                       // 创建一个图片对象
+img.src = "winter_outdoorsTileSheet..png";     // ← 换文件名可看其它贴图集
+const T = 16, SCALE = 2;                       // 每块16像素，放大2倍显示
+
+img.onload = () => {                           // 图片加载完成后才执行
+  const c = document.getElementById("g").getContext("2d");
+  const cols = img.width / T, rows = img.height / T;
+  const g = document.getElementById("g");
+  g.width = img.width * SCALE;                 // 画布按放大倍数设置
+  g.height = img.height * SCALE;
+
+  c.imageSmoothingEnabled = false;             // 关闭平滑，像素风更清晰
+  c.drawImage(img, 0, 0, g.width, g.height);   // 整张图放大绘制
+
+  c.strokeStyle = "rgba(255,0,0,.4)";          // 画网格线
+  for (let x = 0; x <= cols; x++) { c.beginPath(); c.moveTo(x*T*SCALE,0); c.lineTo(x*T*SCALE,g.height); c.stroke(); }
+  for (let y = 0; y <= rows; y++) { c.beginPath(); c.moveTo(0,y*T*SCALE); c.lineTo(g.width,y*T*SCALE); c.stroke(); }
+
+  g.addEventListener("mousemove", e => {       // 悬停：显示行列号 + 源像素坐标
+    const col = Math.floor(e.offsetX / (T * SCALE));
+    const row = Math.floor(e.offsetY / (T * SCALE));
+    document.getElementById("info").textContent =
+      `列 ${col}，行 ${row}  →  源像素 (${col*T}, ${row*T})`;
+  });
+};
+</script>
+</body>
+</html>
