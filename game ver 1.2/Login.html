@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 | 冰原计划</title>
+  <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+  <div class="page">
+    <main class="shell">
+      <section class="welcome">
+        <div class="brand">
+          <img src="logo.jpg" alt="项目 logo">
+          <span>冰原计划</span>
+        </div>
+        <div class="welcome-copy">
+          <h1>欢迎回到<br>我们的世界</h1>
+          <p>登录后继续探索故事、地图与每一个等待被发现的秘密。</p>
+        </div>
+        <div class="location">PRE-SEMESTER PROJECT · 2025</div>
+      </section>
+
+      <section class="form-panel">
+        <div class="form-wrap">
+          <div class="form-heading">
+            <h2 id="form-title">欢迎回来</h2>
+            <p id="form-subtitle">登录你的账号，继续你的探索旅程。</p>
+          </div>
+
+          <div class="switcher" role="tablist" aria-label="登录或注册">
+            <button type="button" class="active" data-mode="login">登录</button>
+            <button type="button" data-mode="register">注册</button>
+          </div>
+
+          <form id="account-form" novalidate>
+            <div class="field">
+              <label for="email">邮箱</label>
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="name@example.com" required>
+            </div>
+            <div class="field register-only">
+              <label for="nickname">昵称</label>
+              <input id="nickname" name="nickname" type="text" autocomplete="nickname" placeholder="给自己起一个名字">
+            </div>
+            <div class="field">
+              <label for="password">密码</label>
+              <div class="password-box">
+                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" minlength="6" required>
+                <button class="show-password" type="button" aria-label="显示密码">显示</button>
+              </div>
+            </div>
+            <div class="field register-only">
+              <label for="confirm-password">确认密码</label>
+              <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" placeholder="再次输入密码">
+            </div>
+            <div class="form-row" id="login-options">
+              <label class="check"><input type="checkbox" id="remember"> 记住账号</label>
+              <a href="#" id="forgot-link">忘记密码？</a>
+            </div>
+            <button class="submit" type="submit" id="submit-button">登录</button>
+            <p class="message" id="message" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/user/login-page.js"></script>
+</body>
+</html>

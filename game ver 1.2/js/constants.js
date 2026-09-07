@@ -1,0 +1,10 @@
+export const T = 32;
+export const DEFAULT_SOURCE_TILE_SIZE = 16;
+export const S = 24;
+export const SPEED = 150;
+export const ANIM = 0.15;
+export const FONT = "'FZG_CN', monospace";
+export const VIEW_W = 1080;
+export const VIEW_H = 720;
+export const HEADROOM = 12;
+export const MARGIN = 2;
