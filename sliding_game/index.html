@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#8fd0ff" />
+<title>极速滑雪 · Low Poly 3D Ski Runner</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+  <div id="vignette"></div>
+
+  <!-- 受击/护盾 闪屏 -->
+  <div id="flashRed" class="flash red hidden"></div>
+  <div id="flashShield" class="flash cyan hidden"></div>
+  <div id="flashSlow" class="flash slow hidden"></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="hudLeft">
+      <div class="stat"><span class="lbl">得分</span><b id="score">0</b></div>
+      <div class="stat"><span class="lbl">距离</span><b id="dst">0</b><span class="unit">m</span></div>
+      <div class="stat"><span class="lbl">速度</span><b id="spd">0</b><span class="unit">km/h</span></div>
+    </div>
+    <div id="hudCenter">
+      <div id="lives">♥ ♥ ♥</div>
+      <div id="shieldBadge" class="hidden">🛡 ×1</div>
+      <div id="boostBadge" class="hidden">⚡ 加速中</div>
+    </div>
+    <div id="hudRight">
+      <button id="btnPause" title="暂停 (P)">⏸</button>
+      <button id="btnMute" title="静音 (M)">🔊</button>
+    </div>
+  </div>
+
+  <!-- 开始菜单 -->
+  <div id="overlayStart" class="overlay">
+    <div class="card glass">
+      <h1>⛷️ 极速滑雪</h1>
+      <p class="sub">Low-Poly 第一人称无尽滑降 · 参考 Edge Surf</p>
+      <div class="control-grid">
+        <div class="ctrl"><b>← → / A D</b><span>左右移动 · 闪避</span></div>
+        <div class="ctrl"><b>空格</b><span>跳跃（越过雪堆/栅栏）</span></div>
+        <div class="ctrl"><b>S / ↓</b><span>下蹲 · 小幅减速</span></div>
+        <div class="ctrl"><b>R / P / M</b><span>重开 / 暂停 / 静音</span></div>
+      </div>
+      <div class="goal">
+        🎯 避开 <b>树木 / 岩石</b>，跳跃越过 <b>雪堆、栅栏</b><br>
+        收集 <b style="color:#ffc94d">金币</b>、<b style="color:#7ce0ff">护盾</b>、<b style="color:#ffd75f">⚡加速</b>，坚持更远！
+      </div>
+      <button id="btnStart" class="btn-primary">▶ 开始滑行</button>
+      <p class="hint">提示：你拥有 3 次生命 · 自动加速，速度越快越难闪避</p>
+    </div>
+  </div>
+
+  <!-- 暂停 -->
+  <div id="overlayPause" class="overlay hidden">
+    <div class="card glass small">
+      <h2>⏸ 已暂停</h2>
+      <button id="btnResume" class="btn-primary">继续 (P)</button>
+    </div>
+  </div>
+
+  <!-- 结束 -->
+  <div id="overlayOver" class="overlay hidden">
+    <div class="card glass">
+      <h2 class="crash-title">🏁 本局结束</h2>
+      <div class="results">
+        <div class="res"><span>最终得分</span><b id="resScore">0</b></div>
+        <div class="res"><span>滑行距离</span><b id="resDist">0 m</b></div>
+        <div class="res"><span>收集金币</span><b id="resCoins">0</b></div>
+        <div class="res"><span>历史最高分</span><b id="resBest">0</b></div>
+      </div>
+      <button id="btnRetry" class="btn-primary">↻ 再来一次 (R)</button>
+    </div>
+  </div>
+
+  <div id="goFlash" class="hidden">GO! 🎿</div>
+  <div id="touchHint"><span>◀ 按住左</span><span>按住右 ▶</span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/terrain.js"></script>
+<script src="js/visuals.js"></script>
+<script src="js/props.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
