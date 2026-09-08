@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>冰原计划 · 地图查看器</title>
+  <style>
+    :root {
+      --ink: #24333a;
+      --muted: #66777d;
+      --paper: #f5f1e8;
+      --panel: #fffdf8;
+      --line: #d8d2c5;
+      --accent: #db684d;
+      --accent-dark: #ad4636;
+      --shadow: 0 14px 35px rgba(59, 54, 43, .12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: radial-gradient(circle at 10% 0%, #fffdf6 0, var(--paper) 42%, #e6eee9 100%);
+      font-family: Georgia, "Songti SC", serif;
+    }
+    button, select, input { font: inherit; }
+    button { cursor: pointer; }
+    .topbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 26px clamp(18px, 5vw, 72px) 20px;
+    }
+    h1 { margin: 0; font-size: clamp(25px, 4vw, 42px); letter-spacing: .02em; }
+    .subtitle { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+    .status { color: var(--accent-dark); font-size: 13px; white-space: nowrap; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(220px, 285px) minmax(0, 1fr);
+      gap: 18px;
+      min-height: calc(100vh - 110px);
+      padding: 0 clamp(18px, 5vw, 72px) 32px;
+    }
+    .panel, .stage {
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border: 1px solid rgba(216, 210, 197, .9);
+      box-shadow: var(--shadow);
+    }
+    .panel { padding: 18px; }
+    .panel h2 { margin: 0 0 14px; font-size: 17px; }
+    .field { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+    .dimensions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    input, select {
+      width: 100%; padding: 9px 10px; border: 1px solid var(--line);
+      border-radius: 5px; color: var(--ink); background: #fff;
+    }
+    .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .button-row button, .primary {
+      border: 1px solid var(--accent-dark); border-radius: 5px; padding: 10px 8px;
+      color: #fff; background: var(--accent); transition: transform .15s, background .15s;
+    }
+    .button-row button:hover, .primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+    .secondary { border: 1px solid var(--line) !important; color: var(--ink) !important; background: #fff !important; }
+    .secondary:hover { background: #f1ece2 !important; }
+    .tool-note { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .palette-wrap { margin-top: 20px; }
+    .palette-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+    .palette-header h2 { margin: 0; }
+    #tileLabel { color: var(--accent-dark); font-size: 12px; }
+    #palette {
+      display: grid; gap: 5px; max-height: 325px; overflow: auto; padding: 5px;
+      background: #eee9de; border: 1px solid var(--line);
+    }
+    .tile-button { width: 32px; height: 32px; padding: 0; border: 2px solid transparent; background: #d8d2c5; }
+    .tile-button.selected { border-color: var(--accent); box-shadow: 0 0 0 2px #fff; }
+    .tile-button canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    #objectPalette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 220px; overflow: auto; padding: 5px; background: #eee9de; border: 1px solid var(--line); }
+    .object-button { display: flex; min-height: 58px; align-items: center; gap: 8px; padding: 5px; border: 2px solid transparent; border-radius: 4px; color: var(--ink); background: #fff; text-align: left; }
+    .object-button.selected { border-color: var(--accent); box-shadow: 0 0 0 2px #fff; }
+    .object-button canvas { width: 46px; height: 46px; flex: 0 0 46px; image-rendering: pixelated; object-fit: contain; background: #eee9de; }
+    .object-button strong { display: block; font-size: 12px; }
+    .object-button span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .object-button-info { min-width: 0; flex: 1; }
+    .object-delete { flex: 0 0 auto; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--accent-dark); background: #fff; font-size: 11px; }
+    .object-delete:hover { color: #fff; background: var(--accent-dark); }
+    .object-import-button { width: 100%; margin-top: 8px; }
+    .stage { display: flex; min-width: 0; min-height: 560px; flex-direction: column; overflow: hidden; }
+    .stagebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+    .stagebar strong { font-size: 14px; }
+    .stage-actions { display: flex; align-items: center; gap: 12px; }
+    .stage-actions label { margin: 0; display: flex; align-items: center; gap: 6px; }
+    .stage-actions input { width: auto; accent-color: var(--accent); }
+    .stage-actions .mode-button.active { border-color: var(--accent-dark); color: #fff; background: var(--accent); }
+    .canvas-frame { flex: 1; overflow: auto; padding: 26px; background: #dfe7e1; }
+    #mapCanvas { display: block; image-rendering: pixelated; background: #fff; box-shadow: 0 5px 16px rgba(36, 51, 58, .18); }
+    .preview { position: fixed; inset: 0; z-index: 2; display: none; padding: 22px; background: #172226; }
+    .preview.open { display: flex; flex-direction: column; gap: 14px; }
+    .preview-bar { display: flex; align-items: center; justify-content: space-between; color: #edf4ee; }
+    .preview-bar button { border: 1px solid #81928d; border-radius: 5px; padding: 8px 14px; color: #edf4ee; background: transparent; }
+    #previewCanvas { width: min(100%, 1300px); height: auto; max-height: calc(100vh - 85px); margin: auto; object-fit: contain; image-rendering: pixelated; background: #fff; }
+    .code-dialog { position: fixed; inset: 0; z-index: 3; display: none; place-items: center; padding: 20px; background: rgba(23, 34, 38, .72); }
+    .code-dialog.open { display: grid; }
+    .code-panel { display: flex; width: min(900px, 100%); max-height: min(760px, 92vh); flex-direction: column; padding: 20px; background: var(--panel); box-shadow: var(--shadow); }
+    .code-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .code-header h2 { margin: 0; font-size: 19px; }
+    .code-header button { border: 1px solid var(--line); border-radius: 5px; padding: 7px 12px; color: var(--ink); background: #fff; }
+    #codeOutput { width: 100%; min-height: 420px; resize: vertical; padding: 14px; border: 1px solid var(--line); color: #26343b; background: #f3f1ea; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .code-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 12px; }
+    .code-footer button { border: 1px solid var(--accent-dark); border-radius: 5px; padding: 9px 14px; color: #fff; background: var(--accent); }
+    @media (max-width: 760px) {
+      .topbar { align-items: start; flex-direction: column; gap: 8px; }
+      .workspace { grid-template-columns: 1fr; }
+      .stage { min-height: 480px; }
+      .panel { order: 2; }
+      .canvas-frame { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>地图查看器</h1>
+      <p class="subtitle">在网格里铺设图块，然后打开预览检查整体效果。</p>
+    </div>
+    <div class="status" id="status">正在加载图集……</div>
+  </header>
+
+  <main class="workspace">
+    <aside class="panel">
+      <h2>地图设置</h2>
+      <div class="field">
+        <label for="sheetSelect">图块图集</label>
+        <select id="sheetSelect"></select>
+      </div>
+      <div class="field">
+        <label>地图尺寸（格）</label>
+        <div class="dimensions">
+          <input id="mapWidth" type="number" min="1" max="120" value="32" aria-label="地图宽度">
+          <input id="mapHeight" type="number" min="1" max="60" value="20" aria-label="地图高度">
+        </div>
+      </div>
+      <div class="button-row">
+        <button class="primary" id="resizeButton">应用尺寸</button>
+        <button class="secondary" id="clearButton">清空地图</button>
+      </div>
+      <div class="palette-wrap">
+        <div class="palette-header"><h2>选择图块</h2><span id="tileLabel">未选择</span></div>
+        <div id="palette" aria-label="图块选择区"></div>
+      </div>
+      <div class="palette-wrap">
+        <div class="palette-header"><h2>静态物体</h2><span id="objectLabel">未选择</span></div>
+        <div id="objectPalette" aria-label="静态物体选择区"></div>
+        <button class="secondary object-import-button" id="openObjectImport">导入新静态物体</button>
+      </div>
+      <p class="tool-note">选择图块后点击或拖动绘制；选择静态物体后点击地图放置。右键可以擦除物体或图块。</p>
+    </aside>
+
+    <section class="stage">
+      <div class="stagebar">
+        <strong id="mapInfo">32 × 20</strong>
+        <div class="stage-actions">
+          <label><input id="gridToggle" type="checkbox" checked> 网格</label>
+          <button class="secondary mode-button" id="solidModeButton" type="button">设置阻挡</button>
+          <button class="primary" id="previewButton">打开预览</button>
+          <button class="primary" id="codeButton">生成地图代码</button>
+        </div>
+      </div>
+      <div class="canvas-frame"><canvas id="mapCanvas"></canvas></div>
+    </section>
+  </main>
+
+  <section class="preview" id="previewPanel" aria-label="地图预览">
+    <div class="preview-bar"><strong>地图预览</strong><button id="closePreview">返回编辑</button></div>
+    <canvas id="previewCanvas"></canvas>
+  </section>
+
+  <section class="code-dialog" id="codeDialog" aria-label="生成的地图代码">
+    <div class="code-panel">
+      <div class="code-header">
+        <h2>地图模块代码</h2>
+        <button id="closeCode">返回编辑</button>
+      </div>
+      <textarea id="codeOutput" spellcheck="false" aria-label="生成的地图模块代码"></textarea>
+      <div class="code-footer">
+        <span id="codeStatus">可复制到 maps/map1.js，再按需添加 NPC 和物体。</span>
+        <button id="copyCode">复制代码</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="code-dialog" id="objectImportDialog" aria-label="导入静态物体">
+    <div class="code-panel">
+      <div class="code-header">
+        <h2>导入静态物体</h2>
+        <button id="closeObjectImport">返回编辑</button>
+      </div>
+      <textarea id="objectImportInput" spellcheck="false" placeholder="把静态物体编辑器生成的 JSON 配置粘贴到这里"></textarea>
+      <div class="code-footer">
+        <span id="objectImportStatus">导入后物体会加入当前列表。</span>
+        <button id="importObject">导入物体</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const TILE_SIZE = 32;
+    const SOURCE_TILE_SIZE = 16;
+    const imageFiles = [
+      "Alex.png", "Bouncer.png", "Deluxe Barn.png", "Festivals.png", "fall_outdoorsTileSheet.png",
+      "fall_town.png", "houses.png", "samshowtiles.png", "spring_outdoorsTileSheet.png",
+      "spring_town.png", "winter_beach.png", "winter_outdoorsTileSheet.png", "winter_town.png",
+    ];
+    const sheetPaths = Object.fromEntries(imageFiles.map((fileName) => [fileName, `img/${fileName}`]));
+    const state = {
+      width: 32,
+      height: 20,
+      sheet: "spring_outdoorsTileSheet.png",
+      selected: { col: 1, row: 9 },
+      mode: "tile",
+      selectedObject: null,
+      cells: [],
+      objects: [],
+      drawing: false,
+      erase: false,
+      solidMode: false,
+      showGrid: true,
+    };
+    const images = {};
+    const mapCanvas = document.getElementById("mapCanvas");
+    const mapContext = mapCanvas.getContext("2d");
+    const previewCanvas = document.getElementById("previewCanvas");
+    const previewContext = previewCanvas.getContext("2d");
+    const objectPresets = {
+      tree: { label: "树", sheet: "spring_outdoorsTileSheet.png", sx: 160, sy: 256, sw: 16, sh: 32, ax: 0, ay: 1, mask: [".", "#"] },
+      flower: { label: "花", sheet: "spring_outdoorsTileSheet.png", sx: 112, sy: 160, sw: 16, sh: 16, ax: 0, ay: 0, mask: ["#"] },
+      border: { label: "围栏", sheet: "spring_outdoorsTileSheet.png", sx: 304, sy: 144, sw: 16, sh: 32, ax: 0, ay: 1, mask: ["#"] },
+      barrel: { label: "木桶", sheet: "spring_outdoorsTileSheet.png", sx: 320, sy: 944, sw: 32, sh: 32, ax: 0, ay: 1, mask: ["##", "##"] },
+      water_barrel: { label: "水桶", sheet: "spring_outdoorsTileSheet.png", sx: 288, sy: 128, sw: 32, sh: 16, ax: 0, ay: 0, mask: ["##"] },
+      house: { label: "房屋", sheet: "spring_town.png", sx: 192, sy: 640, sw: 192, sh: 160, ax: 0, ay: 10, mask: ["############", "############", "############", "############", "############", "############", "############", "############", "############", "############"] },
+      barn: { label: "谷仓", sheet: "Deluxe Barn.png", sx: 0, sy: 0, sw: 112, sh: 128, ax: 0, ay: 0, mask: [".......", ".......", ".......", "#######", "#######", "#######", "#######", "#######"] },
+    };
+
+    function populateSheetSelect() {
+      const select = document.getElementById("sheetSelect");
+      for (const fileName of imageFiles) {
+        const option = document.createElement("option");
+        option.value = fileName;
+        option.textContent = fileName;
+        select.append(option);
+      }
+      select.value = state.sheet;
+    }
+
+    function createCells(width, height) {
+      return Array.from({ length: height }, () => Array.from({ length: width }, () => null));
+    }
+
+    function loadSheet(name) {
+      if (images[name]) return Promise.resolve(images[name]);
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => { images[name] = image; resolve(image); };
+        image.onerror = reject;
+        image.src = sheetPaths[name];
+      });
+    }
+
+    function drawCell(context, cell, x, y, size) {
+      if (!cell) {
+        context.fillStyle = "#f8f8f2";
+        context.fillRect(x, y, size, size);
+        return;
+      }
+      const image = images[cell.sheet];
+      if (!image) return;
+      context.drawImage(image, cell.col * SOURCE_TILE_SIZE, cell.row * SOURCE_TILE_SIZE,
+        SOURCE_TILE_SIZE, SOURCE_TILE_SIZE, x, y, size, size);
+    }
+
+    function drawObject(context, placedObject) {
+      const object = objectPresets[placedObject.type];
+      const image = images[object.sheet];
+      if (!image) return;
+      const scale = TILE_SIZE / SOURCE_TILE_SIZE;
+      context.drawImage(image, object.sx, object.sy, object.sw, object.sh,
+        (placedObject.col - object.ax) * TILE_SIZE, (placedObject.row - object.ay) * TILE_SIZE,
+        object.sw * scale, object.sh * scale);
+    }
+
+    function drawGrid(context, width, height, size) {
+      if (!state.showGrid) return;
+      context.strokeStyle = "rgba(36, 51, 58, .2)";
+      context.lineWidth = 1;
+      context.beginPath();
+      for (let x = 0; x <= width; x++) { context.moveTo(x * size + .5, 0); context.lineTo(x * size + .5, height * size); }
+      for (let y = 0; y <= height; y++) { context.moveTo(0, y * size + .5); context.lineTo(width * size, y * size + .5); }
+      context.stroke();
+    }
+
+    function renderMap() {
+      mapCanvas.width = state.width * TILE_SIZE;
+      mapCanvas.height = state.height * TILE_SIZE;
+      mapContext.imageSmoothingEnabled = false;
+      mapContext.fillStyle = "#f8f8f2";
+      mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+      for (let row = 0; row < state.height; row++) {
+        for (let col = 0; col < state.width; col++) drawCell(mapContext, state.cells[row][col], col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE);
+      }
+      for (const placedObject of state.objects) drawObject(mapContext, placedObject);
+      drawSolidMarkers();
+      drawGrid(mapContext, state.width, state.height, TILE_SIZE);
+      document.getElementById("mapInfo").textContent = `${state.width} × ${state.height}`;
+    }
+
+    function drawSolidMarkers() {
+      mapContext.fillStyle = "rgba(219, 104, 77, .24)";
+      mapContext.strokeStyle = "rgba(173, 70, 54, .9)";
+      mapContext.lineWidth = 2;
+      for (let row = 0; row < state.height; row++) {
+        for (let col = 0; col < state.width; col++) {
+          if (!state.cells[row][col]?.solid) continue;
+          const x = col * TILE_SIZE;
+          const y = row * TILE_SIZE;
+          mapContext.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+          mapContext.strokeRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+          mapContext.beginPath();
+          mapContext.moveTo(x + 5, y + TILE_SIZE - 5);
+          mapContext.lineTo(x + TILE_SIZE - 5, y + 5);
+          mapContext.stroke();
+        }
+      }
+    }
+
+    function renderPalette() {
+      const image = images[state.sheet];
+      const palette = document.getElementById("palette");
+      palette.replaceChildren();
+      const cols = Math.floor(image.width / SOURCE_TILE_SIZE);
+      const rows = Math.floor(image.height / SOURCE_TILE_SIZE);
+      palette.style.gridTemplateColumns = `repeat(${cols}, 32px)`;
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const button = document.createElement("button");
+          button.className = "tile-button";
+          button.title = `图块 ${col}, ${row}`;
+          button.dataset.col = col;
+          button.dataset.row = row;
+          const tileCanvas = document.createElement("canvas");
+          tileCanvas.width = SOURCE_TILE_SIZE;
+          tileCanvas.height = SOURCE_TILE_SIZE;
+          tileCanvas.getContext("2d").drawImage(image, col * SOURCE_TILE_SIZE, row * SOURCE_TILE_SIZE,
+            SOURCE_TILE_SIZE, SOURCE_TILE_SIZE, 0, 0, SOURCE_TILE_SIZE, SOURCE_TILE_SIZE);
+          button.append(tileCanvas);
+          button.addEventListener("click", () => selectTile(col, row));
+          palette.append(button);
+        }
+      }
+      selectTile(state.selected.col, state.selected.row);
+    }
+
+    function renderObjectPalette() {
+      const palette = document.getElementById("objectPalette");
+      palette.replaceChildren();
+      for (const [type, object] of Object.entries(objectPresets)) {
+        const button = document.createElement("div");
+        button.className = "object-button";
+        button.dataset.type = type;
+        button.tabIndex = 0;
+        const thumbnail = document.createElement("canvas");
+        thumbnail.width = object.sw;
+        thumbnail.height = object.sh;
+        thumbnail.getContext("2d").drawImage(images[object.sheet], object.sx, object.sy, object.sw, object.sh, 0, 0, object.sw, object.sh);
+        button.append(thumbnail);
+        const info = document.createElement("span");
+        info.className = "object-button-info";
+        info.innerHTML = `<strong>${object.label}</strong><span>${object.sw / SOURCE_TILE_SIZE} × ${object.sh / SOURCE_TILE_SIZE} 格</span>`;
+        button.append(info);
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "object-delete";
+        deleteButton.type = "button";
+        deleteButton.textContent = "删除";
+        deleteButton.title = `删除${object.label}`;
+        deleteButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          deleteObject(type);
+        });
+        button.append(deleteButton);
+        button.addEventListener("click", () => selectObject(type));
+        button.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") selectObject(type);
+        });
+        palette.append(button);
+      }
+    }
+
+    function deleteObject(type) {
+      const object = objectPresets[type];
+      if (!object) return;
+      state.objects = state.objects.filter((placedObject) => placedObject.type !== type);
+      delete objectPresets[type];
+      if (state.selectedObject === type) {
+        state.selectedObject = null;
+        state.mode = "tile";
+        document.getElementById("objectLabel").textContent = "未选择";
+      }
+      renderObjectPalette();
+      renderMap();
+    }
+
+    function selectTile(col, row) {
+      state.mode = "tile";
+      state.solidMode = false;
+      document.getElementById("solidModeButton").classList.remove("active");
+      state.selected = { col, row };
+      document.querySelectorAll(".tile-button").forEach((button) => {
+        button.classList.toggle("selected", Number(button.dataset.col) === col && Number(button.dataset.row) === row);
+      });
+      document.getElementById("tileLabel").textContent = `${col}, ${row}`;
+    }
+
+    function selectObject(type) {
+      state.mode = "object";
+      state.solidMode = false;
+      document.getElementById("solidModeButton").classList.remove("active");
+      document.getElementById("solidModeButton").textContent = "设置阻挡";
+      state.selectedObject = type;
+      document.querySelectorAll(".object-button").forEach((button) => {
+        button.classList.toggle("selected", button.dataset.type === type);
+      });
+      document.getElementById("objectLabel").textContent = objectPresets[type].label;
+    }
+
+    function importObjectConfig() {
+      const status = document.getElementById("objectImportStatus");
+      try {
+        const config = JSON.parse(document.getElementById("objectImportInput").value);
+        const image = images[config.sheet];
+        const expectedWidth = config.sw / SOURCE_TILE_SIZE;
+        const expectedHeight = config.sh / SOURCE_TILE_SIZE;
+        if (!config.id || !config.label || objectPresets[config.id]) throw new Error("物体 ID、名称不能为空，也不能与现有物体重复。");
+        if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(config.id)) throw new Error("物体 ID 必须是英文标识符，例如 stone 或 large_tree。");
+        if (!image || ![config.sx, config.sy, config.sw, config.sh, config.ax, config.ay].every(Number.isInteger)) throw new Error("图集或物体尺寸配置无效。");
+        if (config.sx < 0 || config.sy < 0 || config.sw < 16 || config.sh < 16 || config.sw % 16 || config.sh % 16 || config.ax < 0 || config.ay < 0 || config.sx + config.sw > image.width || config.sy + config.sh > image.height) throw new Error("源图区域超出了图集，或尺寸不是 16 的倍数。");
+        if (!Array.isArray(config.mask) || config.mask.length !== expectedHeight || config.mask.some((line) => line.length !== expectedWidth || !/^[.#]+$/.test(line))) throw new Error(`遮罩必须是 ${expectedWidth} 列 × ${expectedHeight} 行，只能使用 # 和 。`);
+        objectPresets[config.id] = { label: config.label, sheet: config.sheet, sx: config.sx, sy: config.sy, sw: config.sw, sh: config.sh, ax: config.ax, ay: config.ay, mask: config.mask };
+        renderObjectPalette();
+        selectObject(config.id);
+        document.getElementById("objectImportDialog").classList.remove("open");
+        document.getElementById("objectImportInput").value = "";
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    }
+
+    function objectAt(col, row) {
+      return state.objects.findIndex((placedObject) => {
+        const object = objectPresets[placedObject.type];
+        const left = placedObject.col - object.ax;
+        const top = placedObject.row - object.ay;
+        const sourceCol = col - left;
+        const sourceRow = row - top;
+        return object.mask[sourceRow] && object.mask[sourceRow][sourceCol] === "#";
+      });
+    }
+
+    function eraseAt(col, row) {
+      const objectIndex = objectAt(col, row);
+      if (objectIndex >= 0) state.objects.splice(objectIndex, 1);
+      else state.cells[row][col] = null;
+    }
+
+    function paint(event) {
+      const rect = mapCanvas.getBoundingClientRect();
+      const col = Math.floor((event.clientX - rect.left) * mapCanvas.width / rect.width / TILE_SIZE);
+      const row = Math.floor((event.clientY - rect.top) * mapCanvas.height / rect.height / TILE_SIZE);
+      if (col < 0 || col >= state.width || row < 0 || row >= state.height) return;
+      if (state.erase) eraseAt(col, row);
+      else if (state.solidMode) {
+        if (state.cells[row][col]) state.cells[row][col].solid = !state.cells[row][col].solid;
+      }
+      else if (state.mode === "object") {
+        state.objects = state.objects.filter((placedObject) => placedObject.col !== col || placedObject.row !== row);
+        state.objects.push({ type: state.selectedObject, col, row });
+      } else state.cells[row][col] = { ...state.selected, sheet: state.sheet, solid: false };
+      renderMap();
+    }
+
+    function resizeMap() {
+      const width = Math.max(1, Math.min(120, Number(document.getElementById("mapWidth").value) || 1));
+      const height = Math.max(1, Math.min(60, Number(document.getElementById("mapHeight").value) || 1));
+      const next = createCells(width, height);
+      for (let row = 0; row < Math.min(height, state.height); row++) {
+        for (let col = 0; col < Math.min(width, state.width); col++) next[row][col] = state.cells[row][col];
+      }
+      state.width = width;
+      state.height = height;
+      state.cells = next;
+      state.objects = state.objects.filter((placedObject) => placedObject.col < width && placedObject.row < height);
+      renderMap();
+    }
+
+    function renderPreview() {
+      previewCanvas.width = state.width * TILE_SIZE;
+      previewCanvas.height = state.height * TILE_SIZE;
+      previewContext.imageSmoothingEnabled = false;
+      previewContext.fillStyle = "#f8f8f2";
+      previewContext.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+      for (let row = 0; row < state.height; row++) {
+        for (let col = 0; col < state.width; col++) drawCell(previewContext, state.cells[row][col], col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE);
+      }
+      for (const placedObject of state.objects) drawObject(previewContext, placedObject);
+    }
+
+    function generateMapCode() {
+      const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!$%&()*+,-/:;<=>?@[]^_{|}~";
+      const tileChars = new Map();
+      const objectChars = new Map();
+      const tileTypes = { ".": { sheet: state.sheet, col: 1, row: 9 } };
+      const objectTypes = {};
+      const usedSheets = new Set([state.sheet]);
+      let nextChar = 0;
+      let nextObjectChar = 0;
+
+      function charFor(cell) {
+        if (!cell) return ".";
+        if (cell.sheet === state.sheet && cell.col === 1 && cell.row === 9 && !cell.solid) return ".";
+        const key = `${cell.sheet}:${cell.col}:${cell.row}:${cell.solid ? "solid" : "open"}`;
+        if (!tileChars.has(key)) {
+          if (nextChar >= chars.length) throw new Error("当前图块种类太多，暂时无法用单字符地图格式表示。");
+          const tileChar = chars[nextChar++];
+          tileChars.set(key, tileChar);
+          tileTypes[tileChar] = { sheet: cell.sheet, col: cell.col, row: cell.row, ...(cell.solid ? { solid: true } : {}) };
+          usedSheets.add(cell.sheet);
+        }
+        return tileChars.get(key);
+      }
+
+      const tiles = state.cells.map((row) => row.map(charFor).join(""));
+      const objectMap = state.cells.map((row) => Array.from({ length: row.length }, () => "."));
+      for (const placedObject of state.objects) {
+        const object = objectPresets[placedObject.type];
+        if (!objectChars.has(placedObject.type)) {
+          const objectChar = chars[nextObjectChar++];
+          objectChars.set(placedObject.type, objectChar);
+          objectTypes[placedObject.type] = {
+            sheet: object.sheet, sx: object.sx, sy: object.sy, sw: object.sw, sh: object.sh,
+            ax: object.ax, ay: object.ay, mask: object.mask,
+          };
+          usedSheets.add(object.sheet);
+        }
+        if (placedObject.row >= 0 && placedObject.row < state.height && placedObject.col >= 0 && placedObject.col < state.width) {
+          objectMap[placedObject.row][placedObject.col] = objectChars.get(placedObject.type);
+        }
+      }
+      const objectMapText = objectMap.map((row) => row.join(""));
+      const sheets = {};
+      for (const sheet of usedSheets) sheets[sheet] = sheetPaths[sheet];
+      const tileTypeText = Object.entries(tileTypes)
+        .map(([tileChar, tile]) => `    ${JSON.stringify(tileChar)}: ${JSON.stringify(tile)},`)
+        .join("\n");
+      const sheetText = Object.entries(sheets)
+        .map(([sheet, path]) => `    ${JSON.stringify(sheet)}: ${JSON.stringify(path)},`)
+        .join("\n");
+      const objectTypeText = Object.entries(objectTypes)
+        .map(([type, object]) => `    ${JSON.stringify(type)}: ${JSON.stringify(object)},`)
+        .join("\n");
+      const objectCharText = Object.entries(Object.fromEntries(objectChars))
+        .map(([type, objectChar]) => `    ${JSON.stringify(objectChar)}: ${JSON.stringify(type)},`)
+        .join("\n");
+
+      return `import { T } from "../js/constants.js";\n\nexport default {\n  // 地图基础设置：尺寸、默认出生点和朝向。\n  width: ${state.width},\n  height: ${state.height},\n  spawn: { x: 0, y: 0, dir: 0 },\n\n  // 地面图层：每个字符串是一行，每个字符对应一个地图格。\n  tiles: ${JSON.stringify(tiles, null, 2)},\n  // tileTypes 同时记录图片来源和该图块的阻挡属性。\n  tileTypes: {\n${tileTypeText}\n  },\n\n  // 静态物体定义与摆放：objectMap 中的字符指向 objectChars。\n  objectTypes: {\n${objectTypeText}\n  },\n  objectMap: ${JSON.stringify(objectMapText, null, 2)},\n  objectChars: {\n${objectCharText}\n  },\n  // 需要自由坐标放置的大型物体可以写入 freeObjects。\n  freeObjects: [],\n\n  // 引擎绘制所需的图片资源。游戏项目的 img/ 中必须存在这些文件。\n  sheets: {\n${sheetText}\n  },\n\n  // 编辑器暂不制作 NPC、传送点和其他实体。\n  // 添加 NPC 时通常需要填写：kind、id、x、y、sheet、solid、dialogue。\n  // 添加传送点时通常需要填写：kind: "warp"、x、y、to 和 spawn。\n  // 对话内容仍需在 js/dialogues/ 中定义，并让 dialogue 字段引用对应 ID。\n  entities: [],\n};\n`;
+    }
+
+    document.getElementById("mapCanvas").addEventListener("pointerdown", (event) => {
+      state.erase = event.button === 2;
+      state.drawing = state.erase || (state.mode === "tile" && !state.solidMode);
+      mapCanvas.setPointerCapture(event.pointerId);
+      paint(event);
+    });
+    mapCanvas.addEventListener("pointermove", (event) => { if (state.drawing) paint(event); });
+    mapCanvas.addEventListener("pointerup", () => { state.drawing = false; });
+    mapCanvas.addEventListener("pointercancel", () => { state.drawing = false; });
+    mapCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
+    document.getElementById("resizeButton").addEventListener("click", resizeMap);
+    document.getElementById("clearButton").addEventListener("click", () => {
+      state.cells = createCells(state.width, state.height);
+      state.objects = [];
+      renderMap();
+    });
+    document.getElementById("openObjectImport").addEventListener("click", () => {
+      document.getElementById("objectImportDialog").classList.add("open");
+    });
+    document.getElementById("closeObjectImport").addEventListener("click", () => {
+      document.getElementById("objectImportDialog").classList.remove("open");
+    });
+    document.getElementById("importObject").addEventListener("click", importObjectConfig);
+    document.getElementById("gridToggle").addEventListener("change", (event) => {
+      state.showGrid = event.target.checked;
+      renderMap();
+    });
+    document.getElementById("solidModeButton").addEventListener("click", () => {
+      state.solidMode = !state.solidMode;
+      document.getElementById("solidModeButton").classList.toggle("active", state.solidMode);
+      document.getElementById("solidModeButton").textContent = state.solidMode ? "阻挡模式：点击切换" : "设置阻挡";
+    });
+    document.getElementById("sheetSelect").addEventListener("change", async (event) => {
+      state.sheet = event.target.value;
+      await loadSheet(state.sheet);
+      renderPalette();
+    });
+    document.getElementById("previewButton").addEventListener("click", () => {
+      renderPreview();
+      document.getElementById("previewPanel").classList.add("open");
+    });
+    document.getElementById("closePreview").addEventListener("click", () => {
+      document.getElementById("previewPanel").classList.remove("open");
+    });
+    document.getElementById("codeButton").addEventListener("click", () => {
+      try {
+        document.getElementById("codeOutput").value = generateMapCode();
+        document.getElementById("codeStatus").textContent = "可复制到 maps/map1.js，再按需添加 NPC 和物体。";
+        document.getElementById("codeDialog").classList.add("open");
+      } catch (error) {
+        document.getElementById("codeStatus").textContent = error.message;
+      }
+    });
+    document.getElementById("closeCode").addEventListener("click", () => {
+      document.getElementById("codeDialog").classList.remove("open");
+    });
+    document.getElementById("copyCode").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(document.getElementById("codeOutput").value);
+      document.getElementById("codeStatus").textContent = "代码已复制到剪贴板。";
+    });
+
+    populateSheetSelect();
+    state.cells = createCells(state.width, state.height);
+    Promise.all(Object.keys(sheetPaths).map(loadSheet)).then(() => {
+      document.getElementById("status").textContent = "图集已就绪 · 可开始绘制";
+      renderPalette();
+      renderObjectPalette();
+      renderMap();
+    }).catch((error) => {
+      document.getElementById("status").textContent = "图集加载失败：请从 map editor 1.0 目录启动 HTTP 服务器";
+      console.error("地图编辑器图集加载失败，请确认 img 文件夹与 map_editor.html 位于同一目录。", error);
+    });
+  </script>
+</body>
+</html>

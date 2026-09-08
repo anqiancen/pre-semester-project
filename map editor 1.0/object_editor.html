@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>冰原计划 · 静态物体编辑器</title>
+  <style>
+    :root { --ink: #24333a; --muted: #66777d; --paper: #f5f1e8; --panel: #fffdf8; --line: #d8d2c5; --accent: #db684d; --accent-dark: #ad4636; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: radial-gradient(circle at 10% 0%, #fffdf6 0, var(--paper) 42%, #e6eee9 100%); font-family: Georgia, "Songti SC", serif; }
+    button, select, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .topbar { padding: 26px clamp(18px, 5vw, 72px) 20px; }
+    h1 { margin: 0; font-size: clamp(25px, 4vw, 42px); }
+    .subtitle { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+    .workspace { display: grid; grid-template-columns: minmax(290px, 390px) minmax(0, 1fr); gap: 18px; padding: 0 clamp(18px, 5vw, 72px) 32px; }
+    .panel { padding: 18px; border: 1px solid var(--line); background: rgba(255, 253, 248, .94); box-shadow: 0 14px 35px rgba(59, 54, 43, .12); }
+    h2 { margin: 0 0 14px; font-size: 18px; }
+    .field { margin-bottom: 13px; }
+    label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+    input, select, textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: #fff; }
+    .dimensions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    textarea { min-height: 120px; resize: vertical; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .hint { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .sheet-viewer { max-height: 330px; overflow: auto; padding: 8px; border: 1px solid var(--line); background: #eee9de; }
+    #sheetCanvas { display: block; image-rendering: pixelated; cursor: crosshair; }
+    .primary { border: 1px solid var(--accent-dark); border-radius: 5px; padding: 10px 14px; color: #fff; background: var(--accent); }
+    .primary:hover { background: var(--accent-dark); }
+    .secondary { border: 1px solid var(--line); border-radius: 5px; padding: 9px 12px; color: var(--ink); background: #fff; }
+    .secondary.active { border-color: var(--accent-dark); color: #fff; background: var(--accent); }
+    .stage { position: sticky; top: 18px; display: flex; min-width: 0; height: calc(100vh - 36px); max-height: 760px; min-height: 620px; flex-direction: column; overflow: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 14px 35px rgba(59, 54, 43, .12); }
+    .stagebar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+    .status { color: var(--accent-dark); font-size: 12px; }
+    .preview-area { display: grid; min-height: 290px; place-items: center; padding: 28px; background: #dfe7e1; }
+    #objectPreview { max-width: min(100%, 520px); max-height: 300px; image-rendering: pixelated; background: #f8f8f2; box-shadow: 0 5px 16px rgba(36, 51, 58, .18); }
+    .output { padding: 18px; }
+    .output-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+    .output-head h2 { margin: 0; }
+    #codeOutput { min-height: 220px; background: #f3f1ea; font-size: 12px; }
+    @media (max-width: 800px) { .workspace { grid-template-columns: 1fr; } .stage { position: static; height: auto; min-height: 500px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>静态物体编辑器</h1>
+    <p class="subtitle">制作一个可导入地图查看器的静态物体配置。</p>
+  </header>
+  <main class="workspace">
+    <section class="panel">
+      <h2>物体定义</h2>
+      <div class="field"><label for="objectName">中文名称</label><input id="objectName" type="text" placeholder="例如：石头"></div>
+      <div class="field"><label for="objectId">英文 ID</label><input id="objectId" type="text" placeholder="例如：stone"><p class="hint">只能使用英文字母、数字和下划线，且必须以字母开头。这个 ID 会写入 map1.js。</p></div>
+      <div class="field"><label for="sheetSelect">图集文件</label><select id="sheetSelect"></select></div>
+      <div class="field"><label>从图集选择源图区域</label><div class="sheet-viewer"><canvas id="sheetCanvas"></canvas></div><p class="hint">点击选择单格，按住拖动选择多个 16 × 16 图块。</p></div>
+      <div class="field"><label>源图区域（像素）</label><div class="dimensions"><input id="sx" type="number" min="0" step="16" value="0" aria-label="源图 X"><input id="sy" type="number" min="0" step="16" value="0" aria-label="源图 Y"><input id="sw" type="number" min="16" step="16" value="16" aria-label="源图宽度"><input id="sh" type="number" min="16" step="16" value="16" aria-label="源图高度"></div><p class="hint">顺序为 sx、sy、sw、sh，尺寸应为 16 的倍数。</p></div>
+      <div class="field"><label>锚点（格）</label><button class="secondary" id="anchorButton" type="button">选择锚点</button><div class="dimensions"><input id="ax" type="number" min="0" value="0" aria-label="锚点 X"><input id="ay" type="number" min="0" value="0" aria-label="锚点 Y"></div><p class="hint" id="anchorHint">点击按钮后，在上方物体区域内选择锚点。</p></div>
+      <div class="field"><label for="mask">遮挡遮罩</label><textarea id="mask" spellcheck="false">#</textarea><p class="hint">每行对应一个地图格：# 表示阻挡，. 表示可以穿过。</p></div>
+      <button class="primary" id="previewButton">更新预览</button>
+      <p class="hint" id="formStatus"></p>
+    </section>
+    <section class="stage">
+      <div class="stagebar"><strong>物体预览</strong><span class="status" id="assetStatus">正在加载图集……</span></div>
+      <div class="preview-area"><canvas id="objectPreview"></canvas></div>
+      <div class="output">
+        <div class="output-head"><h2>导入配置</h2><button class="primary" id="copyButton">复制 JSON</button></div>
+        <textarea id="codeOutput" spellcheck="false" readonly placeholder="点击“更新预览”生成配置"></textarea>
+        <p class="hint">复制这段 JSON，在地图查看器的“导入新静态物体”窗口中粘贴。</p>
+      </div>
+    </section>
+  </main>
+  <script src="js/object-editor.js"></script>
+</body>
+</html>
